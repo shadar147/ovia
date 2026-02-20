@@ -46,9 +46,14 @@ fn get_var_or(key: &str, default: &str) -> String {
 mod tests {
     use super::*;
     use std::env;
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn config_from_env_succeeds_with_required_vars() {
+        let _guard = ENV_LOCK.lock().expect("env lock poisoned");
+
         // Set required vars for this test
         env::set_var("DATABASE_URL", "postgres://localhost/ovia_test");
 
@@ -62,6 +67,8 @@ mod tests {
 
     #[test]
     fn config_from_env_fails_without_database_url() {
+        let _guard = ENV_LOCK.lock().expect("env lock poisoned");
+
         env::remove_var("DATABASE_URL");
         let result = AppConfig::from_env();
         assert!(result.is_err());
