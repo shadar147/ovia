@@ -5,7 +5,7 @@ Status legend: `todo | in_progress | review | done | blocked`
 ## Epic 0 — Project Foundation
 
 ### OVIA-0001 Rust workspace scaffold
-- Status: `todo`
+- Status: `done`
 - Priority: P0
 - Owner: Claude
 - Description:
@@ -19,7 +19,7 @@ Status legend: `todo | in_progress | review | done | blocked`
   - Smoke tests for service startup config parsing.
 
 ### OVIA-0002 CI quality gates
-- Status: `todo`
+- Status: `done`
 - Priority: P0
 - Owner: Claude
 - Description:
@@ -32,7 +32,7 @@ Status legend: `todo | in_progress | review | done | blocked`
 ## Epic 1 — Identity Model v2 (core)
 
 ### OVIA-1001 SQL migration baseline
-- Status: `todo`
+- Status: `in_progress`
 - Priority: P0
 - Depends on: OVIA-0001
 - Description:

@@ -60,3 +60,25 @@ create table if not exists identity_events (
   payload jsonb,
   created_at timestamptz not null default now()
 );
+
+
+-- conflict queue and reviewer workflows
+create index if not exists person_identity_links_conflict_queue_idx
+  on person_identity_links(org_id, status, confidence, created_at desc)
+  where valid_to is null;
+
+-- identity lookup by email/username per source
+create index if not exists identities_source_email_idx
+  on identities(org_id, source, email)
+  where email is not null;
+
+create index if not exists identities_source_username_idx
+  on identities(org_id, source, username)
+  where username is not null;
+
+-- status semantics:
+-- auto: accepted automatically by threshold
+-- verified: manually confirmed by reviewer
+-- conflict: ambiguous candidate, requires review
+-- rejected: explicitly marked as not matching
+-- ignored: intentionally excluded from matching
