@@ -1,3 +1,5 @@
+pub mod identity;
+
 use ovia_common::error::{OviaError, OviaResult};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
