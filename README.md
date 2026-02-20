@@ -20,3 +20,4 @@ Initial product/technical blueprint for launching Ovia:
 - `docs/06-mvp-plan.md`
 - `docs/07-launch-checklist-hetzner.md`
 - `docs/08-ui-prototype.md`
+- `docs/09-wireframe-spec-laptop-first.md`
