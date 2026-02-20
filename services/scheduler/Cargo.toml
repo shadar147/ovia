@@ -1,0 +1,14 @@
+[package]
+name = "ovia-scheduler"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "ovia-scheduler"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { workspace = true }
+tracing = { workspace = true }
+ovia-common = { workspace = true }
+ovia-config = { workspace = true }

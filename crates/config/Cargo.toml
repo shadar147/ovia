@@ -1,0 +1,11 @@
+[package]
+name = "ovia-config"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+dotenvy = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+ovia-common = { workspace = true }

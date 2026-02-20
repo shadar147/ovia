@@ -1,0 +1,14 @@
+[package]
+name = "ovia-metrics"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "ovia-metrics"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { workspace = true }
+tracing = { workspace = true }
+ovia-common = { workspace = true }
+ovia-config = { workspace = true }
