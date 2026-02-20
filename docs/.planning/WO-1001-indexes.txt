@@ -1,0 +1,11 @@
+       tablename       |                indexname                 
+-----------------------+------------------------------------------
+ identities            | identities_pkey
+ identities            | identities_source_email_idx
+ identities            | identities_source_external_uidx
+ identities            | identities_source_username_idx
+ person_identity_links | person_identity_links_conflict_queue_idx
+ person_identity_links | person_identity_links_pkey
+ person_identity_links | person_identity_unique_active
+(7 rows)
+

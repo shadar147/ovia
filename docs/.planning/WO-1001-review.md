@@ -15,10 +15,10 @@
 ## Validation status
 - SQL updated and committed.
 - Added reviewer query plan + migration apply checklist: `docs/15-identity-query-plan.md`.
-- Full migration replay validation remains blocked until PostgreSQL runtime is available on host.
+- Migration replay executed on local Postgres container (clean apply + idempotent re-apply).
+- Created index snapshot: `docs/.planning/WO-1001-indexes.txt`.
 
 ## Next microtasks
-1. Provision PostgreSQL runtime (or temporary remote DB) for migration replay.
-2. Run migration on clean DB.
-3. Run migration against existing schema snapshot.
-4. Capture EXPLAIN ANALYZE output and attach to this review.
+1. (Optional) Run migration against existing schema snapshot from production-like dump.
+2. Capture EXPLAIN ANALYZE output and attach to this review.
+3. Move to OVIA-1002 repository layer implementation.

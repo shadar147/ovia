@@ -32,7 +32,7 @@ Status legend: `todo | in_progress | review | done | blocked`
 ## Epic 1 — Identity Model v2 (core)
 
 ### OVIA-1001 SQL migration baseline
-- Status: `in_progress`
+- Status: `done`
 - Priority: P0
 - Depends on: OVIA-0001
 - Description:
