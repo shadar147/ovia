@@ -23,6 +23,14 @@
    - Telegram bot interface
    - scheduled reports
 
+## Runtime services (Swarm)
+- `ovia-api` (axum REST API)
+- `ovia-ingest` (connector workers)
+- `ovia-metrics` (analytics workers)
+- `ovia-rag` (indexing + retrieval)
+- `ovia-scheduler` (cron orchestration)
+- `postgres`, `redis`, `reverse-proxy`, `monitoring`
+
 ## Data flow
 1. Connector fetches source updates
 2. Raw payload persisted for traceability
@@ -34,9 +42,10 @@
    - semantic retrieval,
    - synthesis answer with citations
 
-## Deployment baseline (Hetzner)
-- App/worker nodes
-- Dedicated Postgres node
+## Deployment baseline (Hetzner + Swarm)
+- Swarm manager node (control plane)
+- 1-2 worker nodes (app/services)
+- dedicated Postgres node (recommended)
 - Redis node
 - Reverse proxy + TLS
 - Backup + monitoring stack

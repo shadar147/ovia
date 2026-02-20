@@ -1,6 +1,6 @@
 # Ovia
 
-Platform concept for engineering intelligence across Jira, GitLab, and Confluence.
+Platform concept for engineering intelligence across Jira, GitLab, and Confluence (Rust backend, Docker Swarm deploy).
 
 ## What is this repo
 Initial product/technical blueprint for launching Ovia:

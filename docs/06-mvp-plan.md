@@ -1,15 +1,15 @@
-# MVP Plan (6 Weeks)
+# MVP Plan (6 Weeks, Rust + Swarm)
 
 ## Week 1 — Foundation
-- repository scaffold
-- env and secret handling
-- Postgres schema + migrations
-- Redis + queue setup
+- Rust monorepo scaffold (`api`, `workers`, `connectors`)
+- env/secrets policy (Swarm secrets)
+- Postgres schema + sqlx migrations
+- Redis setup + queue conventions
 
 ## Week 2 — Connectors
 - Jira connector + incremental sync
 - GitLab connector + incremental sync
-- raw payload persistence
+- raw payload persistence for traceability
 
 ## Week 3 — Confluence + model
 - Confluence sync
@@ -28,7 +28,8 @@
 
 ## Week 6 — Delivery
 - Telegram integration
-- weekly summary job
+- Docker Swarm stack manifests
+- weekly summary jobs
 - hardening, docs, runbook, handover
 
 ## Exit criteria

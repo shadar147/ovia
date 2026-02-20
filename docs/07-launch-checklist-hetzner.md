@@ -1,17 +1,25 @@
-# Launch Checklist (Hetzner)
+# Launch Checklist (Hetzner + Docker Swarm)
 
 ## Infrastructure
-- [ ] Provision APP node (8 vCPU / 16 GB)
+- [ ] Provision Swarm manager node
+- [ ] Provision 1-2 Swarm worker nodes
 - [ ] Provision DB node (16 vCPU / 32 GB + 300-500 GB volume)
 - [ ] Provision Redis node (2-3 vCPU / 4-8 GB)
 - [ ] Configure private networking between nodes
 - [ ] Configure DNS and TLS
 
+## Swarm setup
+- [ ] `docker swarm init` on manager
+- [ ] Join worker nodes with manager token
+- [ ] Create overlay networks (`ovia-core`, `ovia-data`, `ovia-monitoring`)
+- [ ] Create Swarm secrets for Jira/GitLab/Confluence/API providers
+- [ ] Deploy stack files (`docker stack deploy`)
+
 ## Security
 - [ ] UFW + fail2ban
 - [ ] SSH hardening (keys only, no password)
 - [ ] service users + least privilege
-- [ ] secret files with 600 permissions
+- [ ] rotate tokens and secrets policy
 
 ## Data services
 - [ ] PostgreSQL + pgvector installed
@@ -19,7 +27,7 @@
 - [ ] restore tested at least once
 
 ## Application
-- [ ] Deploy API + workers
+- [ ] Deploy Rust API + worker services
 - [ ] Configure connectors (Jira/GitLab/Confluence)
 - [ ] Run initial backfill
 - [ ] Enable incremental sync schedules
