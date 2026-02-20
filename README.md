@@ -1,5 +1,7 @@
 # Ovia
 
+[![CI](https://github.com/shadar147/ovia/actions/workflows/ci.yml/badge.svg)](https://github.com/shadar147/ovia/actions/workflows/ci.yml)
+
 Platform concept for engineering intelligence across Jira, GitLab, and Confluence (Rust backend, Docker Swarm deploy).
 
 ## What is this repo
