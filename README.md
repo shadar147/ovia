@@ -23,3 +23,5 @@ Initial product/technical blueprint for launching Ovia:
 - `docs/09-wireframe-spec-laptop-first.md`
 
 - `prototype/v1/README.md`
+- `docs/12-identity-model-v2.md`
+- `db/migrations/0001_identity_v2.sql`

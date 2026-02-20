@@ -208,6 +208,9 @@
 
 ## Data model sketch (identity core)
 
+Use Identity Model v2 (`people`, `identities`, `person_identity_links`, `identity_events`) from `docs/12-identity-model-v2.md`.
+
+
 ### `identity_profiles`
 - id (uuid)
 - org_id
