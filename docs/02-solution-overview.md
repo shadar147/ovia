@@ -11,6 +11,7 @@ Capabilities:
 - analytics and trend reporting
 - natural-language Q&A over synchronized context
 - scheduled summaries and proactive alerts
+- cross-system team identity mapping (GitLab ↔ Jira ↔ Confluence) with confidence scoring and manual verification
 
 ## Main use cases
 1. “Why did velocity drop this sprint?”

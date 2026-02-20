@@ -5,6 +5,14 @@
 - role model (admin/analyst/viewer)
 - source credential vault references
 
+## 1.1) Team Identity Hub (Cross-system Mapping)
+- canonical employee profile (`person_id`)
+- source accounts map (GitLab/Jira/Confluence)
+- auto-match rules (email, username, display name similarity)
+- confidence scoring and conflict detection
+- manual confirm/remap/split workflow
+- audit trail for identity-link changes
+
 ## 2) Source Connectors
 - Jira API client + mapper
 - GitLab API client + mapper
