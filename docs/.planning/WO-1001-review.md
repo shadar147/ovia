@@ -14,9 +14,11 @@
 
 ## Validation status
 - SQL updated and committed.
-- Full migration replay validation remains next microtask.
+- Added reviewer query plan + migration apply checklist: `docs/15-identity-query-plan.md`.
+- Full migration replay validation remains blocked until PostgreSQL runtime is available on host.
 
 ## Next microtasks
-1. Run migration on clean DB.
-2. Run migration against existing schema snapshot.
-3. Add query examples + explain notes in docs.
+1. Provision PostgreSQL runtime (or temporary remote DB) for migration replay.
+2. Run migration on clean DB.
+3. Run migration against existing schema snapshot.
+4. Capture EXPLAIN ANALYZE output and attach to this review.
