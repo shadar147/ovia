@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+<rect x="0" y="0" width="1440" height="900" fill="#f7f8fb"/>
+<rect x="0" y="0" width="1440" height="64" fill="#111827"/>
+<text x="24" y="40" fill="#ffffff" font-size="22" font-family="Arial">Ovia — Team → Identity Mapping</text>
+<rect x="0" y="64" width="240" height="836" fill="#1f2937"/>
+<text x="24" y="120" fill="#d1d5db" font-size="18" font-family="Arial">Dashboard</text>
+<text x="24" y="162" fill="#d1d5db" font-size="18" font-family="Arial">Team</text>
+<text x="24" y="204" fill="#d1d5db" font-size="18" font-family="Arial">Ask Ovia</text>
+<text x="24" y="246" fill="#d1d5db" font-size="18" font-family="Arial">Reports</text>
+<text x="24" y="288" fill="#d1d5db" font-size="18" font-family="Arial">Settings</text>
+<rect x="264" y="88" width="1152" height="788" rx="10" fill="#ffffff" stroke="#d1d5db"/>
+<rect x="292" y="112" width="1096" height="90" rx="8" fill="#f9fafb" stroke="#cbd5e1"/>
+<text x="306" y="140" fill="#111827" font-size="18" font-family="Arial">Filters: status/team/confidence + bulk actions</text>
+<rect x="292" y="222" width="760" height="626" rx="8" fill="#f9fafb" stroke="#cbd5e1"/>
+<text x="306" y="250" fill="#111827" font-size="18" font-family="Arial">Identity mapping table (25 rows)</text>
+<rect x="1072" y="222" width="316" height="626" rx="8" fill="#f9fafb" stroke="#cbd5e1"/>
+<text x="1086" y="250" fill="#111827" font-size="18" font-family="Arial">Detail drawer: rationale / alternatives / audit</text>
+</svg>
