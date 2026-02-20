@@ -1,0 +1,16 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Dashboard</title><link rel="stylesheet" href="./styles.css"></head><body>
+<script src="./app.js"></script><script>document.write(nav('dashboard'))</script>
+<div class="row" style="margin-bottom:12px"><select><option>Last 14 days</option></select><select><option>All products</option></select><button class="btn">Export weekly</button></div>
+<div class="grid kpi" style="margin-bottom:12px">
+  <div class="card"><div class="muted">Delivery Health</div><h2>78</h2><span class="badge high">+4 w/w</span></div>
+  <div class="card"><div class="muted">Release Risk</div><h2>62</h2><span class="badge mid">Medium</span></div>
+  <div class="card"><div class="muted">Throughput</div><h2>143</h2><span class="badge high">Issues done</span></div>
+  <div class="card"><div class="muted">Review Latency</div><h2>18h</h2><span class="badge low">P90: 42h</span></div>
+</div>
+<div class="grid two" style="margin-bottom:12px">
+  <div class="card"><h3>Trends</h3><p class="muted">Velocity, cycle time, lead time charts (click points for drilldown)</p><div style="height:180px;border:1px dashed #cbd5e1;border-radius:8px"></div></div>
+  <div class="card"><h3>Top Risks & Blockers</h3><table class="table"><tr><th>Entity</th><th>Owner</th><th>Age</th></tr><tr><td>JIRA-121</td><td>Ivan M.</td><td>9d</td></tr><tr><td>MR !882</td><td>Rina L.</td><td>6d</td></tr><tr><td>Pipeline #9012</td><td>Mobile B</td><td>2d</td></tr></table></div>
+</div>
+<div class="card"><h3>Narrative Insight</h3><p>Velocity dropped 11% due to increased review latency in Mobile B and 2 long-living blockers.</p><p class="muted">Sources: JIRA-121, MR !882, pipeline #9012</p></div>
+<script>document.write(end())</script>
+</body></html>

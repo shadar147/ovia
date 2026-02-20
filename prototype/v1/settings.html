@@ -1,0 +1,7 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Settings</title><link rel="stylesheet" href="./styles.css"></head><body>
+<script src="./app.js"></script><script>document.write(nav('settings'))</script>
+<div class="grid two">
+<div class="card"><h3>Connections</h3><table class="table"><tr><th>Source</th><th>Status</th><th>Last sync</th></tr><tr><td>Jira</td><td><span class="badge high">connected</span></td><td>2m ago</td></tr><tr><td>GitLab</td><td><span class="badge high">connected</span></td><td>1m ago</td></tr><tr><td>Confluence</td><td><span class="badge mid">degraded</span></td><td>14m ago</td></tr></table></div>
+<div class="card"><h3>Sync policy</h3><p>Incremental interval</p><select><option>5 min</option></select><p>Retention</p><select><option>365 days</option></select><div class="row"><button class="btn">Save</button></div></div>
+</div>
+<script>document.write(end())</script></body></html>

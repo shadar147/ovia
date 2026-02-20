@@ -1,0 +1,18 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Team Identity</title><link rel="stylesheet" href="./styles.css"></head><body>
+<script src="./app.js"></script><script>document.write(nav('team'))</script>
+<div class="row" style="margin-bottom:10px">
+<select><option>status: all</option><option>conflict</option><option>unmatched</option></select>
+<select><option>team: all</option></select>
+<label>confidence ≥ <input type="number" value="0.85" step="0.01" style="width:90px"></label>
+<button class="btn">Bulk confirm</button>
+</div>
+<div class="side">
+<div class="card">
+<table class="table"><tr><th>Person</th><th>GitLab</th><th>Jira</th><th>Confluence</th><th>Status</th><th>Conf.</th></tr>
+<tr><td>Ivan Malinov</td><td>imalinov</td><td>Ivan M.</td><td>ivan.m</td><td><span class="badge high">verified</span></td><td>0.99</td></tr>
+<tr><td>Rina Leb</td><td>leb_rina</td><td>Rina L</td><td>rina.leb</td><td><span class="badge mid">auto</span></td><td>0.93</td></tr>
+<tr><td>Alex Kim</td><td>akim</td><td>A. Kim</td><td>alex.kim2</td><td><span class="badge low">conflict</span></td><td>0.61</td></tr>
+</table></div>
+<div class="card"><h3>Match rationale</h3><p class="muted">Selected: Alex Kim</p><ul><li>email similarity: +0.30</li><li>username similarity: +0.18</li><li>display name similarity: +0.13</li></ul><div class="row"><button class="btn">Confirm</button><button>Remap</button><button>Split</button></div></div>
+</div>
+<script>document.write(end())</script></body></html>

@@ -1,0 +1,10 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Ask Ovia</title><link rel="stylesheet" href="./styles.css"></head><body>
+<script src="./app.js"></script><script>document.write(nav('ask'))</script>
+<div class="side">
+<div>
+  <div class="card" style="margin-bottom:12px"><h3>Ask</h3><textarea placeholder="What blocks release X and why velocity dropped?"></textarea><div class="row" style="margin-top:8px"><select><option>All sources</option></select><select><option>Last 30 days</option></select><button class="btn">Run query</button></div></div>
+  <div class="card"><h3>Answer</h3><p>Release risk is medium-high due to 2 blockers older than 7 days and increased MR review latency in Mobile B.</p><p class="muted">Confidence: medium. Assumptions: release scope includes JIRA-121 epic.</p></div>
+</div>
+<div class="card"><h3>Evidence</h3><ol><li>JIRA-121 blocker age 9d</li><li>MR !882 waiting review 62h</li><li>Pipeline #9012 failed 3 times</li></ol></div>
+</div>
+<script>document.write(end())</script></body></html>
