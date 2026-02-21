@@ -5,7 +5,7 @@ mod identity;
 mod kpi;
 
 use axum::{
-    http::{header, StatusCode},
+    http::{header, HeaderValue, Method, StatusCode},
     response::IntoResponse,
     routing::get,
     Json, Router,
@@ -16,6 +16,7 @@ use ovia_db::ask::pg_repository::PgAskRepository;
 use ovia_db::identity::pg_repository::PgIdentityRepository;
 use ovia_db::kpi::pg_repository::PgKpiRepository;
 use std::net::SocketAddr;
+use tower_http::cors::CorsLayer;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -52,6 +53,14 @@ ovia_info{service=\"ovia-api\",version=\"0.1.0\"} 1\n";
 }
 
 fn build_router(state: AppState) -> Router {
+    let cors = CorsLayer::new()
+        .allow_origin([
+            "http://localhost:3000".parse::<HeaderValue>().unwrap(),
+            "http://127.0.0.1:3000".parse::<HeaderValue>().unwrap(),
+        ])
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
+        .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, "x-org-id".parse().unwrap()]);
+
     Router::new()
         .route("/health", get(health))
         .route("/info", get(info))
@@ -59,6 +68,7 @@ fn build_router(state: AppState) -> Router {
         .merge(identity::router())
         .merge(kpi::router())
         .merge(ask::router())
+        .layer(cors)
         .with_state(state)
 }
 

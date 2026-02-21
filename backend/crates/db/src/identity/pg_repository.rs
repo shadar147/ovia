@@ -22,6 +22,10 @@ impl PgIdentityRepository {
         Self { pool }
     }
 
+    pub fn pool(&self) -> &PgPool {
+        &self.pool
+    }
+
     fn map_link_row(row: PgRow) -> OviaResult<PersonIdentityLink> {
         let status_raw: String = row.get("status");
         let status = LinkStatus::from_str(&status_raw).map_err(OviaError::Internal)?;

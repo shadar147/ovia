@@ -2,6 +2,7 @@ mod confluence;
 mod connector;
 mod gitlab;
 mod jira;
+mod matching;
 
 use ovia_config::init_tracing;
 
@@ -114,6 +115,24 @@ async fn main() {
         }
     } else {
         tracing::info!("no confluence credentials found, skipping confluence sync");
+    }
+
+    // ── Batch matching: link identities to people ──
+    tracing::info!("starting batch matching");
+    match matching::run_batch_matching(&pool, org_id).await {
+        Ok(result) => {
+            tracing::info!(
+                people_created = result.people_created,
+                links_created = result.links_created,
+                auto = result.auto,
+                conflict = result.conflict,
+                rejected = result.rejected,
+                "batch matching completed"
+            );
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "batch matching failed");
+        }
     }
 
     tracing::info!("ingest service finished");
