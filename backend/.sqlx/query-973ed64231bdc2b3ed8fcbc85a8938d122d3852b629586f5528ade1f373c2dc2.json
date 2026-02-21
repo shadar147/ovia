@@ -1,0 +1,82 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT i.id, i.org_id, i.source, i.external_id, i.username, i.email,\n               i.display_name, i.is_service_account, i.first_seen_at, i.last_seen_at, i.raw_ref\n        FROM identities i\n        WHERE i.org_id = $1\n          AND i.is_service_account = false\n          AND NOT EXISTS (\n            SELECT 1 FROM person_identity_links pil\n            WHERE pil.identity_id = i.id\n              AND pil.valid_to IS NULL\n              AND pil.status != 'rejected'\n          )\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "org_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "source",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "external_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "username",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "email",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "display_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "is_service_account",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 8,
+        "name": "first_seen_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "last_seen_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "raw_ref",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "973ed64231bdc2b3ed8fcbc85a8938d122d3852b629586f5528ade1f373c2dc2"
+}
