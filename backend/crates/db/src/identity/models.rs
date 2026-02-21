@@ -66,6 +66,7 @@ pub struct Identity {
     pub is_service_account: bool,
     pub first_seen_at: Option<DateTime<Utc>>,
     pub last_seen_at: Option<DateTime<Utc>>,
+    pub raw_ref: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -6,10 +6,10 @@ use sqlx::{postgres::PgRow, PgPool, Postgres, QueryBuilder, Row, Transaction};
 use uuid::Uuid;
 
 use crate::identity::models::{
-    BulkConfirmResult, ConflictQueueFilter, ConflictQueueStats, IdentityMappingFilter, LinkStatus,
-    PersonIdentityLink,
+    BulkConfirmResult, ConflictQueueFilter, ConflictQueueStats, Identity, IdentityMappingFilter,
+    LinkStatus, PersonIdentityLink,
 };
-use crate::identity::repositories::PersonIdentityLinkRepository;
+use crate::identity::repositories::{IdentityRepository, PersonIdentityLinkRepository};
 use ovia_common::error::{OviaError, OviaResult};
 
 #[derive(Clone)]
@@ -66,6 +66,162 @@ impl PgIdentityRepository {
         .map_err(|e| OviaError::Database(e.to_string()))?;
 
         Ok(())
+    }
+}
+
+#[async_trait]
+impl IdentityRepository for PgIdentityRepository {
+    async fn get_by_id(&self, org_id: Uuid, id: Uuid) -> OviaResult<Option<Identity>> {
+        let row = sqlx::query(
+            "select id, org_id, source, external_id, username, email, display_name,
+                    is_service_account, first_seen_at, last_seen_at, raw_ref
+             from identities where org_id = $1 and id = $2",
+        )
+        .bind(org_id)
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| OviaError::Database(e.to_string()))?;
+
+        match row {
+            Some(r) => Ok(Some(Identity {
+                id: r.get("id"),
+                org_id: r.get("org_id"),
+                source: r.get("source"),
+                external_id: r.get("external_id"),
+                username: r.get("username"),
+                email: r.get("email"),
+                display_name: r.get("display_name"),
+                is_service_account: r.get("is_service_account"),
+                first_seen_at: r.get("first_seen_at"),
+                last_seen_at: r.get("last_seen_at"),
+                raw_ref: r.get("raw_ref"),
+            })),
+            None => Ok(None),
+        }
+    }
+
+    async fn create(&self, identity: Identity) -> OviaResult<Identity> {
+        let row = sqlx::query(
+            "insert into identities (id, org_id, source, external_id, username, email, display_name,
+                                     is_service_account, first_seen_at, last_seen_at, raw_ref)
+             values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+             returning id, org_id, source, external_id, username, email, display_name,
+                       is_service_account, first_seen_at, last_seen_at, raw_ref",
+        )
+        .bind(identity.id)
+        .bind(identity.org_id)
+        .bind(&identity.source)
+        .bind(&identity.external_id)
+        .bind(&identity.username)
+        .bind(&identity.email)
+        .bind(&identity.display_name)
+        .bind(identity.is_service_account)
+        .bind(identity.first_seen_at)
+        .bind(identity.last_seen_at)
+        .bind(&identity.raw_ref)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| OviaError::Database(e.to_string()))?;
+
+        Ok(Identity {
+            id: row.get("id"),
+            org_id: row.get("org_id"),
+            source: row.get("source"),
+            external_id: row.get("external_id"),
+            username: row.get("username"),
+            email: row.get("email"),
+            display_name: row.get("display_name"),
+            is_service_account: row.get("is_service_account"),
+            first_seen_at: row.get("first_seen_at"),
+            last_seen_at: row.get("last_seen_at"),
+            raw_ref: row.get("raw_ref"),
+        })
+    }
+
+    async fn update(&self, identity: Identity) -> OviaResult<Identity> {
+        let row = sqlx::query(
+            "update identities
+             set username = $1, email = $2, display_name = $3, is_service_account = $4,
+                 last_seen_at = $5, raw_ref = $6, updated_at = now()
+             where id = $7 and org_id = $8
+             returning id, org_id, source, external_id, username, email, display_name,
+                       is_service_account, first_seen_at, last_seen_at, raw_ref",
+        )
+        .bind(&identity.username)
+        .bind(&identity.email)
+        .bind(&identity.display_name)
+        .bind(identity.is_service_account)
+        .bind(identity.last_seen_at)
+        .bind(&identity.raw_ref)
+        .bind(identity.id)
+        .bind(identity.org_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| OviaError::Database(e.to_string()))?;
+
+        Ok(Identity {
+            id: row.get("id"),
+            org_id: row.get("org_id"),
+            source: row.get("source"),
+            external_id: row.get("external_id"),
+            username: row.get("username"),
+            email: row.get("email"),
+            display_name: row.get("display_name"),
+            is_service_account: row.get("is_service_account"),
+            first_seen_at: row.get("first_seen_at"),
+            last_seen_at: row.get("last_seen_at"),
+            raw_ref: row.get("raw_ref"),
+        })
+    }
+
+    async fn upsert_by_external_id(&self, identity: Identity) -> OviaResult<Identity> {
+        let now = Utc::now();
+        let row = sqlx::query(
+            "insert into identities (id, org_id, source, external_id, username, email, display_name,
+                                     is_service_account, first_seen_at, last_seen_at, raw_ref, created_at, updated_at)
+             values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12)
+             on conflict (org_id, source, external_id) where external_id is not null
+             do update set
+               email = excluded.email,
+               display_name = excluded.display_name,
+               username = excluded.username,
+               is_service_account = excluded.is_service_account,
+               last_seen_at = excluded.last_seen_at,
+               raw_ref = excluded.raw_ref,
+               updated_at = excluded.updated_at
+             returning id, org_id, source, external_id, username, email, display_name,
+                       is_service_account, first_seen_at, last_seen_at, raw_ref",
+        )
+        .bind(identity.id)
+        .bind(identity.org_id)
+        .bind(&identity.source)
+        .bind(&identity.external_id)
+        .bind(&identity.username)
+        .bind(&identity.email)
+        .bind(&identity.display_name)
+        .bind(identity.is_service_account)
+        .bind(identity.first_seen_at.unwrap_or(now))
+        .bind(identity.last_seen_at.unwrap_or(now))
+        .bind(&identity.raw_ref)
+        .bind(now)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| OviaError::Database(e.to_string()))?;
+
+        Ok(Identity {
+            id: row.get("id"),
+            org_id: row.get("org_id"),
+            source: row.get("source"),
+            external_id: row.get("external_id"),
+            username: row.get("username"),
+            email: row.get("email"),
+            display_name: row.get("display_name"),
+            is_service_account: row.get("is_service_account"),
+            first_seen_at: row.get("first_seen_at"),
+            last_seen_at: row.get("last_seen_at"),
+            raw_ref: row.get("raw_ref"),
+        })
     }
 }
 

@@ -75,6 +75,25 @@ Rule: each task should be completable in one focused sprint (<=10 min), with a c
 - [x] MT-5001-06 Create `.env.example` with production variable template.
 - [x] MT-5001-07 Update delivery backlog status to done.
 
+## OVIA-3001 Jira incremental sync (decomposed)
+- [x] MT-3001-01 Add `raw_ref: Option<serde_json::Value>` to `Identity` struct (align Rust model with SQL).
+- [x] MT-3001-02 Add `raw_ref: None` to `make_identity` test helper in matching engine.
+- [x] MT-3001-03 Create `0002_sync_watermarks.sql` migration.
+- [x] MT-3001-04 Create `db/src/sync/models.rs` — `SyncWatermark` struct.
+- [x] MT-3001-05 Create `db/src/sync/repositories.rs` — `SyncWatermarkRepository` trait.
+- [x] MT-3001-06 Create `db/src/sync/pg_repository.rs` — Postgres implementation + tests.
+- [x] MT-3001-07 Add `upsert_by_external_id` to `IdentityRepository` trait.
+- [x] MT-3001-08 Implement `IdentityRepository` for `PgIdentityRepository` (get_by_id, create, update, upsert).
+- [x] MT-3001-09 Add workspace deps: `reqwest`, `base64`, `wiremock`.
+- [x] MT-3001-10 Create `ingest/src/connector.rs` — shared `Connector` trait + `SyncResult`.
+- [x] MT-3001-11 Create `ingest/src/jira/models.rs` — `JiraUser` struct + `is_service_account()` + unit tests.
+- [x] MT-3001-12 Create `ingest/src/jira/client.rs` — paginated fetch, retry/backoff, wiremock tests.
+- [x] MT-3001-13 Create `ingest/src/jira/sync.rs` — `JiraSyncer` with lock/fetch/upsert cycle + mock tests.
+- [x] MT-3001-14 Wire up `ingest/src/main.rs` — load config, build client, run sync.
+- [x] MT-3001-15 Update `.env.example` with Jira env vars.
+- [x] MT-3001-16 Run `cargo fmt`, `cargo clippy -D warnings`, `cargo test --all` — all green.
+- [x] MT-3001-17 Update delivery backlog and microtasks docs.
+
 ## Operating cadence
 - One commit every 1–2 microtasks (max ~10 minutes work).
 - Each commit includes:

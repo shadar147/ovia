@@ -102,6 +102,22 @@ Status legend: `todo | in_progress | review | done | blocked`
 ## Epic 3 — Connectors (MVP)
 
 ### OVIA-3001 Jira incremental sync
+- Status: `done`
+- Priority: P1
+- Owner: Claude
+- Description:
+  - Jira Cloud user sync connector with paginated fetch, retry/backoff, idempotent upsert.
+  - Sync watermark table for lock-based concurrency control.
+  - `raw_ref` field added to Identity model for raw payload persistence.
+  - `upsert_by_external_id` on `IdentityRepository` for conflict-free inserts.
+- Acceptance:
+  - watermark-based sync, idempotent upsert, retry/backoff.
+  - raw payload persistence.
+  - integration tests with mocked paginated API (wiremock).
+- Tests:
+  - 17 unit/integration tests: Jira models, client pagination, retry on 5xx, fail-fast on 4xx, sync orchestration, service account detection, raw_ref persistence.
+  - 5 sync watermark repository tests: get_or_create, acquire_lock, concurrent lock rejection, mark_completed, mark_failed.
+
 ### OVIA-3002 GitLab incremental sync
 ### OVIA-3003 Confluence incremental sync
 - Status: `todo`
