@@ -1,0 +1,13 @@
+[package]
+name = "ovia-matching"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ovia-db = { workspace = true }
+serde = { workspace = true }
+strsim = "0.11"
+
+[dev-dependencies]
+uuid = { workspace = true }
+chrono = { workspace = true }

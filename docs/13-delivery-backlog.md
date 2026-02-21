@@ -73,7 +73,7 @@ Status legend: `todo | in_progress | review | done | blocked`
 ## Epic 2 — Matching Engine
 
 ### OVIA-2001 Matching rules v1
-- Status: `todo`
+- Status: `done`
 - Priority: P0
 - Depends on: OVIA-1002
 - Description:

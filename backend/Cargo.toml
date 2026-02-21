@@ -4,6 +4,7 @@ members = [
     "crates/common",
     "crates/config",
     "crates/db",
+    "crates/matching",
     "services/api",
     "services/ingest",
     "services/metrics",
@@ -50,3 +51,4 @@ async-trait = "0.1"
 ovia-common = { path = "crates/common" }
 ovia-config = { path = "crates/config" }
 ovia-db = { path = "crates/db" }
+ovia-matching = { path = "crates/matching" }

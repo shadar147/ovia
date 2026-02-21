@@ -48,16 +48,16 @@ Rule: each task should be completable in one focused sprint (<=10 min), with a c
 - [x] MT-1003-09 Add handler tests for error mapping.
 
 ## OVIA-2001 Matching rules v1 (decomposed)
-- [ ] MT-2001-01 Define scoring config struct + defaults.
-- [ ] MT-2001-02 Implement exact-email scorer.
-- [ ] MT-2001-03 Implement username-similarity scorer.
-- [ ] MT-2001-04 Implement display-name scorer.
-- [ ] MT-2001-05 Implement team/project co-occurrence scorer.
-- [ ] MT-2001-06 Implement service-account penalty/exclusion.
-- [ ] MT-2001-07 Merge scorers into final confidence function.
-- [ ] MT-2001-08 Add rule-trace payload generation.
-- [ ] MT-2001-09 Add threshold classifier (`auto/conflict/reject`).
-- [ ] MT-2001-10 Add fixture tests (at least 15 scenarios).
+- [x] MT-2001-01 Define scoring config struct + defaults.
+- [x] MT-2001-02 Implement exact-email scorer.
+- [x] MT-2001-03 Implement username-similarity scorer.
+- [x] MT-2001-04 Implement display-name scorer.
+- [x] MT-2001-05 Implement team/project co-occurrence scorer.
+- [x] MT-2001-06 Implement service-account penalty/exclusion.
+- [x] MT-2001-07 Merge scorers into final confidence function.
+- [x] MT-2001-08 Add rule-trace payload generation.
+- [x] MT-2001-09 Add threshold classifier (`auto/conflict/reject`).
+- [x] MT-2001-10 Add fixture tests (at least 15 scenarios).
 
 ## OVIA-2002 Conflict queue workflow (decomposed)
 - [ ] MT-2002-01 Add conflict queue query endpoint.
