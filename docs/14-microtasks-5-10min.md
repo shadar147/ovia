@@ -37,15 +37,15 @@ Rule: each task should be completable in one focused sprint (<=10 min), with a c
 - [x] MT-1002-13 Add integration test for split.
 
 ## OVIA-1003 Identity API v1 (decomposed)
-- [ ] MT-1003-01 Add route module for identity mappings.
-- [ ] MT-1003-02 Implement `GET /team/identity-mappings` handler.
-- [ ] MT-1003-03 Implement query validation for filters.
-- [ ] MT-1003-04 Add response schema structs.
-- [ ] MT-1003-05 Add `POST /confirm` handler.
-- [ ] MT-1003-06 Add `POST /remap` handler.
-- [ ] MT-1003-07 Add `POST /split` handler.
-- [ ] MT-1003-08 Emit audit event on each mutation.
-- [ ] MT-1003-09 Add handler tests for error mapping.
+- [x] MT-1003-01 Add route module for identity mappings.
+- [x] MT-1003-02 Implement `GET /team/identity-mappings` handler.
+- [x] MT-1003-03 Implement query validation for filters.
+- [x] MT-1003-04 Add response schema structs.
+- [x] MT-1003-05 Add `POST /confirm` handler.
+- [x] MT-1003-06 Add `POST /remap` handler.
+- [x] MT-1003-07 Add `POST /split` handler.
+- [x] MT-1003-08 Emit audit event on each mutation.
+- [x] MT-1003-09 Add handler tests for error mapping.
 
 ## OVIA-2001 Matching rules v1 (decomposed)
 - [ ] MT-2001-01 Define scoring config struct + defaults.

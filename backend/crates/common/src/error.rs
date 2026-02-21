@@ -11,6 +11,9 @@ pub enum OviaError {
     #[error("not found: {0}")]
     NotFound(String),
 
+    #[error("validation error: {0}")]
+    Validation(String),
+
     #[error("internal error: {0}")]
     Internal(String),
 }

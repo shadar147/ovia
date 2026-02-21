@@ -9,6 +9,7 @@ use crate::identity::models::{IdentityMappingFilter, LinkStatus, PersonIdentityL
 use crate::identity::repositories::PersonIdentityLinkRepository;
 use ovia_common::error::{OviaError, OviaResult};
 
+#[derive(Clone)]
 pub struct PgIdentityRepository {
     pool: PgPool,
 }

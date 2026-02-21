@@ -55,7 +55,7 @@ Status legend: `todo | in_progress | review | done | blocked`
   - Integration tests with test DB.
 
 ### OVIA-1003 Identity API v1
-- Status: `todo`
+- Status: `done`
 - Priority: P0
 - Depends on: OVIA-1002
 - Description:
