@@ -12,3 +12,6 @@ coverage/
 /backend/target/
 **/*.rs.bk
 Cargo.lock
+
+# Claude Code worktrees
+.claude/worktrees/
