@@ -39,11 +39,10 @@ cargo test --all
 - `docs/12-identity-model-v2.md`
 - `docs/13-delivery-backlog.md`
 - `docs/14-microtasks-5-10min.md`
-- `docs/15-identity-query-plan.md`
+- `docs/15-backup-restore-runbook.md`
+- `docs/16-identity-query-plan.md`
 
 ## Backend references
 - `backend/db/migrations/0001_identity_v2.sql`
+- `backend/infra/docker-compose.swarm.yml`
 - `backend/infra/docker-compose.dev.yml`
-- `prototype/v1/README.md`
-- `ops/skills/claude-relay/SKILL.md`
-- `backend/scripts/claude-relay.sh`

@@ -192,61 +192,42 @@
 
 ---
 
-## Canonical API sketch (MVP)
+## Implemented API endpoints
 
-- `GET /dashboard/kpis`
-- `GET /dashboard/risks`
+### Identity mappings
 - `GET /team/identity-mappings`
 - `POST /team/identity-mappings/confirm`
 - `POST /team/identity-mappings/remap`
-- `GET /team/person/:personId`
+- `POST /team/identity-mappings/split`
+
+### Conflict queue
+- `GET /team/conflicts`
+- `POST /team/conflicts/bulk-confirm`
+- `GET /team/conflicts/export`
+- `GET /team/conflicts/stats`
+
+### KPI
+- `GET /team/kpi`
+- `GET /team/kpi/history`
+- `GET /team/kpi/risks`
+
+### Ask Ovia
 - `POST /ask`
-- `GET /reports/templates`
-- `POST /reports/run`
+- `GET /ask/:id`
+- `GET /ask/history`
+
+### Ops
+- `GET /health`
+- `GET /info`
+- `GET /metrics`
 
 ---
 
-## Data model sketch (identity core)
+## Data model
 
-Use Identity Model v2 (`people`, `identities`, `person_identity_links`, `identity_events`) from `docs/12-identity-model-v2.md`.
+See Identity Model v2 in `docs/12-identity-model-v2.md`.
 
-
-### `identity_profiles`
-- id (uuid)
-- org_id
-- display_name
-- primary_email
-- team
-- role
-- created_at/updated_at
-
-### `identity_accounts`
-- id (uuid)
-- profile_id (nullable before match)
-- source (`gitlab|jira|confluence`)
-- external_id
-- username
-- email
-- display_name
-- raw_ref
-
-### `identity_links`
-- id
-- profile_id
-- account_id
-- status
-- confidence
-- rule_trace (jsonb)
-- verified_by
-- verified_at
-
-### `identity_events`
-- id
-- link_id
-- action (`auto_match|confirm|remap|split|ignore`)
-- actor
-- payload (jsonb)
-- created_at
+Actual tables: `people`, `identities`, `person_identity_links`, `identity_events`, `sync_watermarks`, `kpi_snapshots`, `risk_items`, `ask_sessions`.
 
 ---
 

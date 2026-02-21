@@ -1,4 +1,4 @@
-# WO-1001 Review — SQL migration baseline (partial)
+# WO-1001 Review — SQL migration baseline (done)
 
 ## What changed
 - Added conflict queue index for active links:
@@ -14,11 +14,5 @@
 
 ## Validation status
 - SQL updated and committed.
-- Added reviewer query plan + migration apply checklist: `docs/15-identity-query-plan.md`.
+- Added reviewer query plan + migration apply checklist: `docs/16-identity-query-plan.md`.
 - Migration replay executed on local Postgres container (clean apply + idempotent re-apply).
-- Created index snapshot: `docs/.planning/WO-1001-indexes.txt`.
-
-## Next microtasks
-1. (Optional) Run migration against existing schema snapshot from production-like dump.
-2. Capture EXPLAIN ANALYZE output and attach to this review.
-3. Move to OVIA-1002 repository layer implementation.
