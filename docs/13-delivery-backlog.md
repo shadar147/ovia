@@ -43,7 +43,7 @@ Status legend: `todo | in_progress | review | done | blocked`
   - Index plan documented for key queries.
 
 ### OVIA-1002 Identity repository layer
-- Status: `in_progress`
+- Status: `done`
 - Priority: P0
 - Depends on: OVIA-0001, OVIA-1001
 - Description:

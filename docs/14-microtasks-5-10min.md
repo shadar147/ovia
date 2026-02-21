@@ -28,13 +28,13 @@ Rule: each task should be completable in one focused sprint (<=10 min), with a c
 - [ ] MT-1002-04 Define repository trait file for `identity_events`.
 - [ ] MT-1002-05 Add DTOs for list/filter requests.
 - [ ] MT-1002-06 Implement `list_mappings` query (read-only).
-- [ ] MT-1002-07 Add unit test fixture for mapping list.
-- [ ] MT-1002-08 Implement `confirm_mapping` transaction.
-- [ ] MT-1002-09 Add integration test for confirm mapping.
-- [ ] MT-1002-10 Implement `remap_mapping` transaction.
-- [ ] MT-1002-11 Add integration test for remap.
-- [ ] MT-1002-12 Implement `split_mapping` transaction.
-- [ ] MT-1002-13 Add integration test for split.
+- [x] MT-1002-07 Add unit test fixture for mapping list.
+- [x] MT-1002-08 Implement `confirm_mapping` transaction.
+- [x] MT-1002-09 Add integration test for confirm mapping.
+- [x] MT-1002-10 Implement `remap_mapping` transaction.
+- [x] MT-1002-11 Add integration test for remap.
+- [x] MT-1002-12 Implement `split_mapping` transaction.
+- [x] MT-1002-13 Add integration test for split.
 
 ## OVIA-1003 Identity API v1 (decomposed)
 - [ ] MT-1003-01 Add route module for identity mappings.
