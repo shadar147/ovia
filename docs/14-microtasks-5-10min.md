@@ -112,6 +112,36 @@ Rule: each task should be completable in one focused sprint (<=10 min), with a c
 - [x] MT-3003-06 Run `cargo fmt`, `cargo clippy -D warnings`, `cargo test --all` — all green.
 - [x] MT-3003-07 Update delivery backlog and microtasks docs.
 
+## OVIA-4001 KPI query service (decomposed)
+- [x] MT-4001-01 Create `0003_kpi_snapshots.sql` migration with kpi_snapshots and risk_items tables.
+- [x] MT-4001-02 Create `db/src/kpi/models.rs` — KpiSnapshot, RiskItem, KpiFilter structs.
+- [x] MT-4001-03 Create `db/src/kpi/repositories.rs` — KpiRepository trait with save/get/list methods.
+- [x] MT-4001-04 Create `db/src/kpi/pg_repository.rs` — Postgres implementation with upsert support.
+- [x] MT-4001-05 Add KPI repo integration tests (7 tests: save+get, none for new org, filter by org, filter by date, risk items, empty risks, upsert).
+- [x] MT-4001-06 Create `metrics/src/kpi/compute.rs` — compute_delivery_health + compute_release_risk pure functions.
+- [x] MT-4001-07 Add compute unit tests (11 tests: perfect/zero/mid health, edge cases, risk levels).
+- [x] MT-4001-08 Create `metrics/src/kpi/service.rs` — KpiService with compute_and_save from DB stats.
+- [x] MT-4001-09 Wire up `metrics/src/main.rs` — one-shot KPI computation with configurable ORG_ID.
+- [x] MT-4001-10 Create `api/src/kpi/` module — handlers, responses, route registration.
+- [x] MT-4001-11 Add API handler tests (4 tests: latest snapshot, 404 when empty, history list, risks 404).
+- [x] MT-4001-12 Run `cargo fmt`, `cargo clippy -D warnings`, `cargo test --all` — all green.
+- [x] MT-4001-13 Update delivery backlog and microtasks docs.
+
+## OVIA-4002 Ask API with citations (decomposed)
+- [x] MT-4002-01 Create `0004_ask_sessions.sql` migration with ask_sessions table.
+- [x] MT-4002-02 Create `db/src/ask/models.rs` — AskSession, Citation, AskFilter structs.
+- [x] MT-4002-03 Create `db/src/ask/repositories.rs` — AskRepository trait.
+- [x] MT-4002-04 Create `db/src/ask/pg_repository.rs` — Postgres implementation with JSONB citations.
+- [x] MT-4002-05 Add Ask repo integration tests (6 tests: save+get, nonexistent, wrong org, filter by org, limit/offset, no optional fields).
+- [x] MT-4002-06 Create `rag/src/ask/engine.rs` — AskEngine stub with KPI data lookup and citation generation.
+- [x] MT-4002-07 Create `rag/src/ask/filters.rs` — AskFilters struct.
+- [x] MT-4002-08 Add Ask engine unit tests (4 tests: with KPI data, without data, session saved, with filters).
+- [x] MT-4002-09 Wire up `rag/src/main.rs` — axum server with POST /ask, GET /ask/:id, GET /ask/history.
+- [x] MT-4002-10 Create `api/src/ask/` module — handlers, requests, responses, route registration.
+- [x] MT-4002-11 Add API handler tests (4 tests: stub response, empty query 400, session 404, history empty).
+- [x] MT-4002-12 Run `cargo fmt`, `cargo clippy -D warnings`, `cargo test --all` — all green.
+- [x] MT-4002-13 Update delivery backlog and microtasks docs.
+
 ## Operating cadence
 - One commit every 1–2 microtasks (max ~10 minutes work).
 - Each commit includes:

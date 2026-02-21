@@ -1,16 +1,22 @@
+mod ask;
 mod error;
 mod extractors;
 mod identity;
+mod kpi;
 
 use axum::{routing::get, Json, Router};
 use ovia_common::types::ServiceInfo;
 use ovia_config::{init_tracing, AppConfig};
+use ovia_db::ask::pg_repository::PgAskRepository;
 use ovia_db::identity::pg_repository::PgIdentityRepository;
+use ovia_db::kpi::pg_repository::PgKpiRepository;
 use std::net::SocketAddr;
 
 #[derive(Clone)]
 pub struct AppState {
     pub identity_repo: PgIdentityRepository,
+    pub kpi_repo: PgKpiRepository,
+    pub ask_repo: PgAskRepository,
 }
 
 async fn health() -> Json<serde_json::Value> {
@@ -26,6 +32,8 @@ fn build_router(state: AppState) -> Router {
         .route("/health", get(health))
         .route("/info", get(info))
         .merge(identity::router())
+        .merge(kpi::router())
+        .merge(ask::router())
         .with_state(state)
 }
 
@@ -41,7 +49,9 @@ async fn main() {
         .expect("failed to create database pool");
 
     let state = AppState {
-        identity_repo: PgIdentityRepository::new(pool),
+        identity_repo: PgIdentityRepository::new(pool.clone()),
+        kpi_repo: PgKpiRepository::new(pool.clone()),
+        ask_repo: PgAskRepository::new(pool),
     };
 
     let app = build_router(state);
@@ -68,6 +78,8 @@ mod tests {
         let pool = ovia_db::create_pool(&url).await.expect("db should connect");
         let state = AppState {
             identity_repo: PgIdentityRepository::new(pool.clone()),
+            kpi_repo: PgKpiRepository::new(pool.clone()),
+            ask_repo: PgAskRepository::new(pool.clone()),
         };
         Some((state, pool))
     }
@@ -691,5 +703,302 @@ mod tests {
         assert_eq!(body["total"], 1);
         assert!(body["avg_confidence"].as_f64().is_some());
         assert!(body["oldest_created_at"].as_str().is_some());
+    }
+
+    // ── KPI endpoint tests ───────────────────────────────────────────
+
+    async fn ensure_kpi_tables(pool: &PgPool) {
+        sqlx::query(
+            "create table if not exists kpi_snapshots (
+              id uuid primary key default gen_random_uuid(),
+              org_id uuid not null,
+              period_start date not null,
+              period_end date not null,
+              delivery_health_score numeric(5,2),
+              release_risk_score numeric(5,2),
+              throughput_total integer not null default 0,
+              throughput_bugs integer not null default 0,
+              throughput_features integer not null default 0,
+              throughput_chores integer not null default 0,
+              review_latency_median_hours numeric(8,2),
+              review_latency_p90_hours numeric(8,2),
+              computed_at timestamptz not null default now(),
+              created_at timestamptz not null default now()
+            )",
+        )
+        .execute(pool)
+        .await
+        .expect("create kpi_snapshots");
+
+        sqlx::query(
+            "create unique index if not exists kpi_snapshots_org_period_uidx
+             on kpi_snapshots(org_id, period_start, period_end)",
+        )
+        .execute(pool)
+        .await
+        .expect("create kpi index");
+
+        sqlx::query(
+            "create table if not exists risk_items (
+              id uuid primary key default gen_random_uuid(),
+              org_id uuid not null,
+              snapshot_id uuid not null references kpi_snapshots(id) on delete cascade,
+              entity_type text not null,
+              title text not null,
+              owner text,
+              age_days integer not null default 0,
+              impact_scope text,
+              status text not null,
+              source_url text,
+              created_at timestamptz not null default now()
+            )",
+        )
+        .execute(pool)
+        .await
+        .expect("create risk_items");
+    }
+
+    async fn insert_kpi_snapshot(pool: &PgPool, org_id: Uuid) -> Uuid {
+        let id = Uuid::new_v4();
+        sqlx::query(
+            "insert into kpi_snapshots (id, org_id, period_start, period_end, \
+             delivery_health_score, release_risk_score, throughput_total, throughput_bugs, \
+             throughput_features, throughput_chores, review_latency_median_hours) \
+             values ($1, $2, '2026-02-01', '2026-02-14', 75.5, 30.0, 42, 10, 25, 7, 4.5)",
+        )
+        .bind(id)
+        .bind(org_id)
+        .execute(pool)
+        .await
+        .expect("insert kpi snapshot");
+        id
+    }
+
+    #[tokio::test]
+    async fn kpi_latest_returns_snapshot() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_kpi_tables(&pool).await;
+        let org = Uuid::new_v4();
+        insert_kpi_snapshot(&pool, org).await;
+
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::get("/team/kpi")
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = read_body(resp).await;
+        assert!(body["data"]["throughput_total"].as_i64().is_some());
+        assert_eq!(body["data"]["throughput_total"], 42);
+    }
+
+    #[tokio::test]
+    async fn kpi_latest_returns_404_when_empty() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_kpi_tables(&pool).await;
+        let org = Uuid::new_v4();
+
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::get("/team/kpi")
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn kpi_history_returns_list() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_kpi_tables(&pool).await;
+        let org = Uuid::new_v4();
+        insert_kpi_snapshot(&pool, org).await;
+
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::get("/team/kpi/history")
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = read_body(resp).await;
+        assert_eq!(body["count"], 1);
+        assert_eq!(body["data"].as_array().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn kpi_risks_returns_404_when_no_snapshot() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_kpi_tables(&pool).await;
+        let org = Uuid::new_v4();
+
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::get("/team/kpi/risks")
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    // ── Ask endpoint tests ───────────────────────────────────────────
+
+    async fn ensure_ask_tables(pool: &PgPool) {
+        sqlx::query(
+            "create table if not exists ask_sessions (
+              id uuid primary key default gen_random_uuid(),
+              org_id uuid not null,
+              query text not null,
+              answer text,
+              confidence text,
+              assumptions text,
+              citations jsonb,
+              filters jsonb,
+              model text,
+              prompt_tokens integer,
+              completion_tokens integer,
+              latency_ms integer,
+              created_at timestamptz not null default now()
+            )",
+        )
+        .execute(pool)
+        .await
+        .expect("create ask_sessions");
+    }
+
+    #[tokio::test]
+    async fn ask_post_returns_stub_response() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_kpi_tables(&pool).await;
+        ensure_ask_tables(&pool).await;
+        let org = Uuid::new_v4();
+
+        let app = build_router(state);
+        let body = serde_json::json!({
+            "query": "What is our delivery health?"
+        });
+        let resp = app
+            .oneshot(
+                Request::post("/ask")
+                    .header("X-Org-Id", org.to_string())
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let resp_body = read_body(resp).await;
+        assert!(resp_body["answer"].as_str().is_some());
+        assert!(resp_body["confidence"].as_str().is_some());
+        assert!(resp_body["session_id"].as_str().is_some());
+    }
+
+    #[tokio::test]
+    async fn ask_post_empty_query_returns_400() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_kpi_tables(&pool).await;
+        ensure_ask_tables(&pool).await;
+        let org = Uuid::new_v4();
+
+        let app = build_router(state);
+        let body = serde_json::json!({
+            "query": ""
+        });
+        let resp = app
+            .oneshot(
+                Request::post("/ask")
+                    .header("X-Org-Id", org.to_string())
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let resp_body = read_body(resp).await;
+        assert!(resp_body["error"].as_str().unwrap().contains("query"));
+    }
+
+    #[tokio::test]
+    async fn ask_get_session_returns_404_for_nonexistent() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_ask_tables(&pool).await;
+        let org = Uuid::new_v4();
+
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::get(format!("/ask/{}", Uuid::new_v4()))
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn ask_history_returns_empty_list() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_ask_tables(&pool).await;
+        let org = Uuid::new_v4();
+
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::get("/ask/history")
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = read_body(resp).await;
+        assert_eq!(body["count"], 0);
+        assert_eq!(body["data"], serde_json::json!([]));
     }
 }

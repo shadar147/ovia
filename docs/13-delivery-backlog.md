@@ -159,14 +159,35 @@ Status legend: `todo | in_progress | review | done | blocked`
 ## Epic 4 — Analytics + Ask Ovia
 
 ### OVIA-4001 KPI query service
-- Status: `todo`
+- Status: `done`
 - Priority: P1
+- Owner: Claude
 - Depends on: Epic 3
+- Description:
+  - KPI snapshots table + risk items table (migrations 0003).
+  - DB repository layer: save, get_latest, list, upsert-on-conflict for snapshots; save/list for risk items.
+  - Pure KPI computation functions: `compute_delivery_health` (weighted 0-100) and `compute_release_risk` (label + score).
+  - KPI service in metrics: one-shot compute-and-save from identity/link stats.
+  - API endpoints: `GET /team/kpi`, `GET /team/kpi/history`, `GET /team/kpi/risks`.
+- Acceptance:
+  - 7 KPI repo integration tests, 11 compute unit tests, 1 service mock test, 4 API handler tests.
+  - All passing, clippy clean, fmt clean.
 
 ### OVIA-4002 Ask API contract with citations
-- Status: `todo`
+- Status: `done`
 - Priority: P1
+- Owner: Claude
 - Depends on: OVIA-4001
+- Description:
+  - Ask sessions table (migration 0004).
+  - DB repository layer: save, get, list sessions with citations as JSONB.
+  - Stub Ask engine in RAG service: looks up KPI data, formats structured answer with citations.
+  - RAG service as axum server: `POST /ask`, `GET /ask/:id`, `GET /ask/history`.
+  - API gateway endpoints: `POST /ask`, `GET /ask/:id`, `GET /ask/history` with local stub engine.
+  - All responses include confidence level, assumptions, and citations pointing to real data.
+- Acceptance:
+  - 6 Ask repo integration tests, 4 Ask engine unit tests, 4 API handler tests.
+  - All passing, clippy clean, fmt clean.
 
 ## Epic 5 — Deployment & Ops
 

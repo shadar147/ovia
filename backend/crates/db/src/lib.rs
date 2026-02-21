@@ -1,4 +1,6 @@
+pub mod ask;
 pub mod identity;
+pub mod kpi;
 pub mod sync;
 
 use ovia_common::error::{OviaError, OviaResult};

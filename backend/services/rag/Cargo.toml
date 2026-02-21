@@ -8,7 +8,20 @@ name = "ovia-rag"
 path = "src/main.rs"
 
 [dependencies]
+axum = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 ovia-common = { workspace = true }
 ovia-config = { workspace = true }
+ovia-db = { workspace = true }
+sqlx = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }
+dotenvy = { workspace = true }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
