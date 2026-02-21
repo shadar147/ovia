@@ -94,6 +94,24 @@ Rule: each task should be completable in one focused sprint (<=10 min), with a c
 - [x] MT-3001-16 Run `cargo fmt`, `cargo clippy -D warnings`, `cargo test --all` — all green.
 - [x] MT-3001-17 Update delivery backlog and microtasks docs.
 
+## OVIA-3002 GitLab incremental sync (decomposed)
+- [x] MT-3002-01 Create `ingest/src/gitlab/models.rs` — `GitLabUser` struct + `is_service_account()` + unit tests.
+- [x] MT-3002-02 Create `ingest/src/gitlab/client.rs` — paginated fetch via `PRIVATE-TOKEN`, `x-next-page` pagination, retry/backoff, wiremock tests.
+- [x] MT-3002-03 Create `ingest/src/gitlab/sync.rs` — `GitLabSyncer` with lock/fetch/upsert cycle + mock tests.
+- [x] MT-3002-04 Wire up `ingest/src/main.rs` — load config, build client, run sync after Jira block.
+- [x] MT-3002-05 Update `.env.example` with GitLab env vars.
+- [x] MT-3002-06 Run `cargo fmt`, `cargo clippy -D warnings`, `cargo test --all` — all green.
+- [x] MT-3002-07 Update delivery backlog and microtasks docs.
+
+## OVIA-3003 Confluence incremental sync (decomposed)
+- [x] MT-3003-01 Create `ingest/src/confluence/models.rs` — `ConfluenceUser` + `ConfluencePageResponse` structs, `is_service_account()`, `effective_display_name()` + unit tests.
+- [x] MT-3003-02 Create `ingest/src/confluence/client.rs` — paginated fetch via Basic auth, group-member endpoint, retry/backoff, wiremock tests.
+- [x] MT-3003-03 Create `ingest/src/confluence/sync.rs` — `ConfluenceSyncer` with lock/fetch/upsert cycle + mock tests.
+- [x] MT-3003-04 Wire up `ingest/src/main.rs` — load config, build client, run sync after GitLab block.
+- [x] MT-3003-05 Update `.env.example` with Confluence env vars.
+- [x] MT-3003-06 Run `cargo fmt`, `cargo clippy -D warnings`, `cargo test --all` — all green.
+- [x] MT-3003-07 Update delivery backlog and microtasks docs.
+
 ## Operating cadence
 - One commit every 1–2 microtasks (max ~10 minutes work).
 - Each commit includes:

@@ -119,13 +119,42 @@ Status legend: `todo | in_progress | review | done | blocked`
   - 5 sync watermark repository tests: get_or_create, acquire_lock, concurrent lock rejection, mark_completed, mark_failed.
 
 ### OVIA-3002 GitLab incremental sync
-### OVIA-3003 Confluence incremental sync
-- Status: `todo`
+- Status: `done`
 - Priority: P1
-- Acceptance (all):
+- Owner: Claude
+- Description:
+  - GitLab Cloud user sync connector with paginated fetch via `PRIVATE-TOKEN` auth.
+  - Pagination via `x-next-page` response header.
+  - Retry/backoff on 429 and 5xx, fail-fast on 4xx.
+  - Idempotent upsert via `upsert_by_external_id`.
+  - Bot detection via `bot` field on GitLab user records.
+  - `raw_ref` field populated with full GitLab user payload.
+- Acceptance:
   - watermark-based sync, idempotent upsert, retry/backoff.
   - raw payload persistence.
-  - integration tests with mocked paginated API.
+  - integration tests with mocked paginated API (wiremock).
+- Tests:
+  - 5 model tests: human user, bot user, missing fields, JSON deserialization, minimal deserialization.
+  - 7 client tests: single page, multi-page pagination, retry on 500, fail-fast on 401, empty response, PRIVATE-TOKEN header, max retries exceeded.
+  - 4 sync tests: upsert all users, skip when lock unavailable, bot service account detection, raw_ref persistence.
+
+### OVIA-3003 Confluence incremental sync
+- Status: `done`
+- Priority: P1
+- Owner: Claude
+- Description:
+  - Confluence Cloud user sync connector using group-member API with paginated fetch, retry/backoff, idempotent upsert.
+  - Basic auth (shared Atlassian identity), `accountType` detection for service accounts.
+  - `effective_display_name()` fallback from `displayName` to `publicName`.
+  - `raw_ref` persistence for raw payload.
+- Acceptance:
+  - watermark-based sync, idempotent upsert, retry/backoff.
+  - raw payload persistence.
+  - integration tests with mocked paginated API (wiremock).
+- Tests:
+  - 9 model tests: human user, app user, missing fields, JSON deserialization, minimal deserialization, effective_display_name preference, fallback, none case, page response deserialization.
+  - 7 client tests: single page, multi-page pagination, retry on 500, fail-fast on 401, empty response, basic auth header, max retries exceeded.
+  - 4 sync tests: upsert all users, skip when lock unavailable, app service account detection, raw_ref persistence.
 
 ## Epic 4 — Analytics + Ask Ovia
 

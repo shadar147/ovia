@@ -1,9 +1,15 @@
+mod confluence;
 mod connector;
+mod gitlab;
 mod jira;
 
 use ovia_config::init_tracing;
 
+use crate::confluence::client::{ConfluenceClient, ConfluenceClientConfig};
+use crate::confluence::sync::ConfluenceSyncer;
 use crate::connector::Connector;
+use crate::gitlab::client::{GitLabClient, GitLabClientConfig};
+use crate::gitlab::sync::GitLabSyncer;
 use crate::jira::client::{JiraClient, JiraClientConfig};
 use crate::jira::sync::JiraSyncer;
 
@@ -51,6 +57,63 @@ async fn main() {
         }
     } else {
         tracing::info!("no jira credentials found, skipping jira sync");
+    }
+
+    // GitLab connector (optional — only runs if GITLAB env vars are set)
+    if let Some(gitlab_config) = GitLabClientConfig::from_env() {
+        tracing::info!("gitlab connector configured, starting sync");
+
+        let client = GitLabClient::new(gitlab_config).expect("failed to create gitlab client");
+        let identity_repo =
+            ovia_db::identity::pg_repository::PgIdentityRepository::new(pool.clone());
+        let sync_repo = ovia_db::sync::pg_repository::PgSyncRepository::new(pool.clone());
+
+        let syncer = GitLabSyncer::new(org_id, client, identity_repo, sync_repo);
+
+        match syncer.sync().await {
+            Ok(result) => {
+                tracing::info!(
+                    source = result.source,
+                    upserted = result.upserted,
+                    errors = result.errors,
+                    "gitlab sync completed"
+                );
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "gitlab sync failed");
+            }
+        }
+    } else {
+        tracing::info!("no gitlab credentials found, skipping gitlab sync");
+    }
+
+    // Confluence connector (optional — only runs if CONFLUENCE env vars are set)
+    if let Some(confluence_config) = ConfluenceClientConfig::from_env() {
+        tracing::info!("confluence connector configured, starting sync");
+
+        let client =
+            ConfluenceClient::new(confluence_config).expect("failed to create confluence client");
+        let identity_repo =
+            ovia_db::identity::pg_repository::PgIdentityRepository::new(pool.clone());
+        let sync_repo = ovia_db::sync::pg_repository::PgSyncRepository::new(pool.clone());
+
+        let syncer = ConfluenceSyncer::new(org_id, client, identity_repo, sync_repo);
+
+        match syncer.sync().await {
+            Ok(result) => {
+                tracing::info!(
+                    source = result.source,
+                    upserted = result.upserted,
+                    errors = result.errors,
+                    "confluence sync completed"
+                );
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "confluence sync failed");
+            }
+        }
+    } else {
+        tracing::info!("no confluence credentials found, skipping confluence sync");
     }
 
     tracing::info!("ingest service finished");
