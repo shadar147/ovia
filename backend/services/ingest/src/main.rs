@@ -10,6 +10,7 @@ use crate::confluence::client::{ConfluenceClient, ConfluenceClientConfig};
 use crate::confluence::sync::ConfluenceSyncer;
 use crate::connector::Connector;
 use crate::gitlab::client::{GitLabClient, GitLabClientConfig};
+use crate::gitlab::mr_sync::GitLabMrPipelineSyncer;
 use crate::gitlab::sync::GitLabSyncer;
 use crate::jira::client::{JiraClient, JiraClientConfig};
 use crate::jira::sync::JiraSyncer;
@@ -82,6 +83,29 @@ async fn main() {
             }
             Err(e) => {
                 tracing::error!(error = %e, "gitlab sync failed");
+            }
+        }
+        // GitLab MR/Pipeline sync (reuses same config)
+        tracing::info!("starting gitlab MR/pipeline sync");
+
+        let mr_client =
+            GitLabClient::new(GitLabClientConfig::from_env().unwrap()).expect("gitlab client");
+        let gitlab_repo = ovia_db::gitlab::pg_repository::PgGitlabRepository::new(pool.clone());
+        let mr_sync_repo = ovia_db::sync::pg_repository::PgSyncRepository::new(pool.clone());
+
+        let mr_syncer = GitLabMrPipelineSyncer::new(org_id, mr_client, gitlab_repo, mr_sync_repo);
+
+        match mr_syncer.sync().await {
+            Ok(result) => {
+                tracing::info!(
+                    source = result.source,
+                    upserted = result.upserted,
+                    errors = result.errors,
+                    "gitlab MR/pipeline sync completed"
+                );
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "gitlab MR/pipeline sync failed");
             }
         }
     } else {

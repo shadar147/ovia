@@ -90,7 +90,7 @@ pub async fn run_batch_matching(pool: &PgPool, org_id: Uuid) -> anyhow::Result<M
             }
             if best_match
                 .as_ref()
-                .map_or(true, |b| m.confidence > b.confidence)
+                .is_none_or(|b| m.confidence > b.confidence)
             {
                 best_person_id = Some(person.id);
                 best_match = Some(m);

@@ -167,6 +167,22 @@ Rule: each task should be completable in one focused sprint (<=10 min), with a c
 - [x] MT-5003-06 Write `docs/15-backup-restore-runbook.md` covering all restore scenarios and operational procedures.
 - [x] MT-5003-07 Update delivery backlog and microtasks docs.
 
+## OVIA-3004 GitLab MR/Pipeline sync + real KPI (decomposed)
+- [x] MT-3004-01 Create `0005_gitlab_data.sql` migration with gitlab_projects, gitlab_merge_requests, gitlab_pipelines tables.
+- [x] MT-3004-02 Create `db/src/gitlab/models.rs` — GitlabProject, GitlabMergeRequest, GitlabPipeline, ReviewDurationRow, StaleMrRow structs.
+- [x] MT-3004-03 Create `db/src/gitlab/pg_repository.rs` — PgGitlabRepository with upsert helpers + KPI query helpers.
+- [x] MT-3004-04 Wire `pub mod gitlab` into `db/src/lib.rs`.
+- [x] MT-3004-05 Add API response structs to `ingest/src/gitlab/models.rs` — GitLabProject, GitLabMergeRequest, GitLabMrAuthor, GitLabPipeline.
+- [x] MT-3004-06 Refactor `ingest/src/gitlab/client.rs` — generic `fetch_all_pages<T>` + `request_with_retry<T>`, add `fetch_all_projects`, `fetch_merged_mrs`, `fetch_open_mrs`, `fetch_pipelines`.
+- [x] MT-3004-07 Create `ingest/src/gitlab/mr_sync.rs` — GitLabMrPipelineSyncer with watermark lock, project/MR/pipeline sync, incremental via cursor.
+- [x] MT-3004-08 Wire `pub mod mr_sync` into `ingest/src/gitlab/mod.rs`.
+- [x] MT-3004-09 Wire MR/pipeline sync into `ingest/src/main.rs` after identity sync.
+- [x] MT-3004-10 Rewrite `metrics/src/kpi/service.rs` — real GitLab queries for throughput, review latency, risk scores, risk item generation.
+- [x] MT-3004-11 Add percentile helper function with unit tests.
+- [x] MT-3004-12 Run `cargo build` — clean with no warnings.
+- [x] MT-3004-13 Run `cargo test -p ovia-db -p ovia-ingest -p ovia-metrics` — all 122 tests pass.
+- [x] MT-3004-14 Update delivery backlog and microtasks docs.
+
 ## Operating cadence
 - One commit every 1–2 microtasks (max ~10 minutes work).
 - Each commit includes:

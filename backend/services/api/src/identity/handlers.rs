@@ -92,13 +92,12 @@ async fn fetch_people_by_ids(pool: &PgPool, ids: &[Uuid]) -> HashMap<Uuid, Perso
     if ids.is_empty() {
         return HashMap::new();
     }
-    let rows = sqlx::query(
-        "select id, display_name, primary_email, team from people where id = any($1)",
-    )
-    .bind(ids)
-    .fetch_all(pool)
-    .await
-    .unwrap_or_default();
+    let rows =
+        sqlx::query("select id, display_name, primary_email, team from people where id = any($1)")
+            .bind(ids)
+            .fetch_all(pool)
+            .await
+            .unwrap_or_default();
 
     rows.into_iter()
         .map(|r| {
@@ -116,10 +115,7 @@ async fn fetch_people_by_ids(pool: &PgPool, ids: &[Uuid]) -> HashMap<Uuid, Perso
         .collect()
 }
 
-async fn fetch_identities_by_ids(
-    pool: &PgPool,
-    ids: &[Uuid],
-) -> HashMap<Uuid, IdentitySummary> {
+async fn fetch_identities_by_ids(pool: &PgPool, ids: &[Uuid]) -> HashMap<Uuid, IdentitySummary> {
     if ids.is_empty() {
         return HashMap::new();
     }
@@ -150,10 +146,7 @@ async fn fetch_identities_by_ids(
         .collect()
 }
 
-async fn fetch_rule_traces(
-    pool: &PgPool,
-    link_ids: &[Uuid],
-) -> HashMap<Uuid, serde_json::Value> {
+async fn fetch_rule_traces(pool: &PgPool, link_ids: &[Uuid]) -> HashMap<Uuid, serde_json::Value> {
     if link_ids.is_empty() {
         return HashMap::new();
     }

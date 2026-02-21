@@ -156,6 +156,29 @@ Status legend: `todo | in_progress | review | done | blocked`
   - 7 client tests: single page, multi-page pagination, retry on 500, fail-fast on 401, empty response, basic auth header, max retries exceeded.
   - 4 sync tests: upsert all users, skip when lock unavailable, app service account detection, raw_ref persistence.
 
+### OVIA-3004 GitLab MR/Pipeline sync + real KPI computation
+- Status: `done`
+- Priority: P1
+- Owner: Claude
+- Depends on: OVIA-3002, OVIA-4001
+- Description:
+  - New DB tables: `gitlab_projects`, `gitlab_merge_requests`, `gitlab_pipelines` (migration 0005).
+  - DB repository layer in `ovia-db` gitlab module: upsert helpers + KPI query helpers (count merged MRs, count by label, review durations, pipeline counts, stale MR percentage, stale MR listing, failed pipeline listing).
+  - Extended GitLab client with generic paginated fetch and 4 new methods: `fetch_all_projects`, `fetch_merged_mrs`, `fetch_open_mrs`, `fetch_pipelines`.
+  - New API response structs: `GitLabProject`, `GitLabMergeRequest`, `GitLabMrAuthor`, `GitLabPipeline`.
+  - MR/Pipeline syncer (`GitLabMrPipelineSyncer`) with separate watermark lock (`gitlab_mr_pipeline`), incremental sync via `cursor_value` as `updated_after`.
+  - KPI service rewritten to compute real metrics from GitLab data: throughput from merged MRs, review latency from actual durations, risk from failing pipelines and stale MRs.
+  - Risk item generation from stale open MRs (>7 days) and failed pipelines.
+- Acceptance:
+  - All 122 tests pass across ovia-db (48), ovia-ingest (58), ovia-metrics (16).
+  - Clean build with no warnings.
+  - New tests: 3 DB repo tests, 4 client tests, 4 syncer tests, 4 percentile unit tests.
+- Tests:
+  - DB: upsert_project, count_merged_mrs, count_merged_mrs_by_label.
+  - Client: fetch_projects pagination, fetch_merged_mrs, fetch_pipelines, API model deserialization.
+  - Syncer: lock-skip, model deserialization.
+  - KPI: percentile median, p90, empty, single value.
+
 ## Epic 4 — Analytics + Ask Ovia
 
 ### OVIA-4001 KPI query service

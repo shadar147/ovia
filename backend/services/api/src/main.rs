@@ -59,7 +59,11 @@ fn build_router(state: AppState) -> Router {
             "http://127.0.0.1:3000".parse::<HeaderValue>().unwrap(),
         ])
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
-        .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, "x-org-id".parse().unwrap()]);
+        .allow_headers([
+            header::CONTENT_TYPE,
+            header::AUTHORIZATION,
+            "x-org-id".parse().unwrap(),
+        ]);
 
     Router::new()
         .route("/health", get(health))

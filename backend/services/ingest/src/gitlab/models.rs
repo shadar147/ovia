@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// A user record from the GitLab REST API (`GET /api/v4/users`).
@@ -17,6 +18,48 @@ impl GitLabUser {
     pub fn is_service_account(&self) -> bool {
         self.bot == Some(true)
     }
+}
+
+/// A project record from the GitLab REST API (`GET /api/v4/projects`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitLabProject {
+    pub id: u64,
+    pub name: String,
+    pub path_with_namespace: String,
+    pub web_url: String,
+}
+
+/// Author embedded inside a merge request response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitLabMrAuthor {
+    pub username: String,
+}
+
+/// A merge request record from the GitLab REST API.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitLabMergeRequest {
+    pub iid: u64,
+    pub title: String,
+    pub state: String,
+    pub author: Option<GitLabMrAuthor>,
+    #[serde(default)]
+    pub labels: Vec<String>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub merged_at: Option<DateTime<Utc>>,
+    pub web_url: String,
+}
+
+/// A pipeline record from the GitLab REST API.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitLabPipeline {
+    pub id: u64,
+    pub status: String,
+    #[serde(rename = "ref")]
+    pub ref_name: Option<String>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+    pub duration: Option<i32>,
+    pub web_url: String,
 }
 
 #[cfg(test)]

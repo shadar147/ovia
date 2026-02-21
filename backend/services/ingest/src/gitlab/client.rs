@@ -1,8 +1,9 @@
 use std::time::Duration;
 
 use reqwest::{Client, StatusCode};
+use serde::de::DeserializeOwned;
 
-use super::models::GitLabUser;
+use super::models::{GitLabMergeRequest, GitLabPipeline, GitLabProject, GitLabUser};
 
 #[derive(Debug, Clone)]
 pub struct GitLabClientConfig {
@@ -69,18 +70,76 @@ impl GitLabClient {
 
     /// Fetch all users via paginated API, retrying transient errors.
     pub async fn fetch_all_users(&self) -> Result<Vec<GitLabUser>, GitLabClientError> {
-        let per_page = 100;
+        let url = format!("{}/api/v4/users?per_page=100", self.config.base_url);
+        self.fetch_all_pages(&url).await
+    }
+
+    /// Fetch all active (non-archived) projects.
+    pub async fn fetch_all_projects(&self) -> Result<Vec<GitLabProject>, GitLabClientError> {
+        let url = format!(
+            "{}/api/v4/projects?per_page=100&simple=true&archived=false&membership=true",
+            self.config.base_url
+        );
+        self.fetch_all_pages(&url).await
+    }
+
+    /// Fetch merged MRs for a project, optionally filtered by `updated_after`.
+    pub async fn fetch_merged_mrs(
+        &self,
+        project_id: u64,
+        updated_after: Option<&str>,
+    ) -> Result<Vec<GitLabMergeRequest>, GitLabClientError> {
+        let mut url = format!(
+            "{}/api/v4/projects/{}/merge_requests?state=merged&per_page=100",
+            self.config.base_url, project_id
+        );
+        if let Some(after) = updated_after {
+            url.push_str(&format!("&updated_after={after}"));
+        }
+        self.fetch_all_pages(&url).await
+    }
+
+    /// Fetch open MRs for a project.
+    pub async fn fetch_open_mrs(
+        &self,
+        project_id: u64,
+    ) -> Result<Vec<GitLabMergeRequest>, GitLabClientError> {
+        let url = format!(
+            "{}/api/v4/projects/{}/merge_requests?state=opened&per_page=100",
+            self.config.base_url, project_id
+        );
+        self.fetch_all_pages(&url).await
+    }
+
+    /// Fetch pipelines for a project, optionally filtered by `updated_after`.
+    pub async fn fetch_pipelines(
+        &self,
+        project_id: u64,
+        updated_after: Option<&str>,
+    ) -> Result<Vec<GitLabPipeline>, GitLabClientError> {
+        let mut url = format!(
+            "{}/api/v4/projects/{}/pipelines?per_page=100",
+            self.config.base_url, project_id
+        );
+        if let Some(after) = updated_after {
+            url.push_str(&format!("&updated_after={after}"));
+        }
+        self.fetch_all_pages(&url).await
+    }
+
+    /// Generic paginated fetch: follows `x-next-page` headers collecting all items.
+    async fn fetch_all_pages<T: DeserializeOwned>(
+        &self,
+        base_url: &str,
+    ) -> Result<Vec<T>, GitLabClientError> {
         let mut page: u64 = 1;
-        let mut all_users = Vec::new();
+        let mut all_items = Vec::new();
+        let separator = if base_url.contains('?') { '&' } else { '?' };
 
         loop {
-            let url = format!(
-                "{}/api/v4/users?per_page={}&page={}",
-                self.config.base_url, per_page, page
-            );
-
-            let (users, next_page) = self.request_with_retry(&url).await?;
-            all_users.extend(users);
+            let url = format!("{base_url}{separator}page={page}");
+            let (items, next_page) = self.request_with_retry::<T>(&url).await?;
+            all_items.extend(items);
 
             match next_page {
                 Some(np) if !np.is_empty() => page = np.parse::<u64>().unwrap_or(page + 1),
@@ -88,13 +147,13 @@ impl GitLabClient {
             }
         }
 
-        Ok(all_users)
+        Ok(all_items)
     }
 
-    async fn request_with_retry(
+    async fn request_with_retry<T: DeserializeOwned>(
         &self,
         url: &str,
-    ) -> Result<(Vec<GitLabUser>, Option<String>), GitLabClientError> {
+    ) -> Result<(Vec<T>, Option<String>), GitLabClientError> {
         let mut last_error = String::new();
 
         for attempt in 0..=self.config.max_retries {
@@ -130,12 +189,12 @@ impl GitLabClient {
                     .and_then(|v| v.to_str().ok())
                     .map(|s| s.to_string());
 
-                let users = response
-                    .json::<Vec<GitLabUser>>()
+                let items = response
+                    .json::<Vec<T>>()
                     .await
                     .map_err(GitLabClientError::RequestError)?;
 
-                return Ok((users, next_page));
+                return Ok((items, next_page));
             }
 
             // Honor Retry-After header for 429
