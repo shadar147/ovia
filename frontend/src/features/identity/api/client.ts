@@ -8,7 +8,7 @@ import type {
 } from "@/lib/api/types";
 
 export const identityApi = {
-  listMappings(filter: IdentityMappingFilter = {}) {
+  async listMappings(filter: IdentityMappingFilter = {}) {
     const params = new URLSearchParams();
     if (filter.status) params.set("status", filter.status);
     if (filter.min_confidence !== undefined)
@@ -19,7 +19,10 @@ export const identityApi = {
     if (filter.offset !== undefined) params.set("offset", String(filter.offset));
 
     const qs = params.toString();
-    return api<PersonIdentityLink[]>(`/team/identity-mappings${qs ? `?${qs}` : ""}`);
+    const res = await api<{ data: PersonIdentityLink[]; count: number }>(
+      `/team/identity-mappings${qs ? `?${qs}` : ""}`,
+    );
+    return res.data;
   },
 
   confirmMapping(linkId: string, verifiedBy: string) {
@@ -43,9 +46,9 @@ export const identityApi = {
     });
   },
 
-  listConflicts(filter: ConflictQueueFilter = {}) {
+  async listConflicts(filter: ConflictQueueFilter = {}) {
     const params = new URLSearchParams();
-    if (filter.sort) params.set("sort", filter.sort);
+    if (filter.sort) params.set("sort_by", filter.sort);
     if (filter.min_confidence !== undefined)
       params.set("min_confidence", String(filter.min_confidence));
     if (filter.max_confidence !== undefined)
@@ -54,21 +57,24 @@ export const identityApi = {
     if (filter.offset !== undefined) params.set("offset", String(filter.offset));
 
     const qs = params.toString();
-    return api<PersonIdentityLink[]>(`/team/conflicts${qs ? `?${qs}` : ""}`);
+    const res = await api<{ data: PersonIdentityLink[]; count: number }>(
+      `/team/conflict-queue${qs ? `?${qs}` : ""}`,
+    );
+    return res.data;
   },
 
   bulkConfirm(linkIds: string[], verifiedBy: string) {
-    return api<BulkConfirmResult>("/team/conflicts/bulk-confirm", {
+    return api<BulkConfirmResult>("/team/conflict-queue/bulk-confirm", {
       method: "POST",
       body: { link_ids: linkIds, verified_by: verifiedBy },
     });
   },
 
   conflictStats() {
-    return api<ConflictQueueStats>("/team/conflicts/stats");
+    return api<ConflictQueueStats>("/team/conflict-queue/stats");
   },
 
   exportCsv() {
-    return api<string>("/team/conflicts/export");
+    return api<string>("/team/conflict-queue/export");
   },
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -36,12 +36,15 @@ export function RuleTraceDrawer({
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>{t("identity.drawerTitle")}</SheetTitle>
+          <SheetDescription>
+            {link.person?.display_name ?? t("identity.unknown")} → {link.identity?.display_name ?? link.identity?.username ?? t("identity.unknown")}
+          </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-6 space-y-6">
+        <div className="px-4 pb-4 space-y-6 flex-1 overflow-y-auto">
           {/* Person */}
           <section>
             <h3 className="text-sm font-medium text-muted-foreground mb-2">{t("identity.person")}</h3>

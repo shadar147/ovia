@@ -85,26 +85,39 @@ export interface BulkConfirmResult {
 export interface KpiSnapshot {
   id: string;
   org_id: string;
-  delivery_health: number;
-  throughput: number;
-  review_latency_p50: number;
-  review_latency_p90: number;
-  blocker_count: number;
-  pipeline_success_rate: number;
-  release_risk_label: string;
-  release_risk_score: number;
+  period_start: string;
+  period_end: string;
+  delivery_health_score: number | null;
+  release_risk_score: number | null;
+  throughput_total: number;
+  throughput_bugs: number;
+  throughput_features: number;
+  throughput_chores: number;
+  review_latency_median_hours: number | null;
+  review_latency_p90_hours: number | null;
   computed_at: string;
+  created_at: string;
 }
 
 export interface RiskItem {
   id: string;
+  org_id: string;
   snapshot_id: string;
   entity_type: string;
   title: string;
   owner: string | null;
   age_days: number;
   impact_scope: string | null;
-  source_link: string | null;
+  status: string;
+  source_url: string | null;
+  created_at: string;
+}
+
+export interface KpiHistoryFilter {
+  period_start?: string;
+  period_end?: string;
+  limit?: number;
+  offset?: number;
 }
 
 export interface AskSession {

@@ -16,3 +16,9 @@ Execution flow for every task:
 - Run lint/tests.
 - Self-review against DoD checklist.
 - Update task status in `docs/13-delivery-backlog.md` and check off completed microtasks in `docs/14-microtasks-5-10min.md`.
+
+## Current roadmap priority (agreed 2026-02-21)
+1. **Dashboard + mock data** — KPI dashboard with charts on generated data
+2. **Jira Issues sync** — tasks, sprints, statuses, cycle time (needs JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN)
+3. **GitLab MRs sync** — merge requests, reviews, CI/CD (needs GITLAB_URL, GITLAB_TOKEN)
+4. **Person 360 page** — individual profile with all identities and activity
