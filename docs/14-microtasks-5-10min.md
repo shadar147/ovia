@@ -112,6 +112,22 @@ Rule: each task should be completable in one focused sprint (<=10 min), with a c
 - [x] MT-3003-06 Run `cargo fmt`, `cargo clippy -D warnings`, `cargo test --all` — all green.
 - [x] MT-3003-07 Update delivery backlog and microtasks docs.
 
+## OVIA-5002 Monitoring baseline (decomposed)
+- [x] MT-5002-01 Create `backend/infra/monitoring/prometheus.yml` with scrape configs for all services.
+- [x] MT-5002-02 Create `backend/infra/monitoring/alert_rules.yml` with 6 alert rules.
+- [x] MT-5002-03 Create `backend/infra/monitoring/loki-config.yml` local config.
+- [x] MT-5002-04 Create `backend/infra/monitoring/promtail-config.yml` for Docker log collection.
+- [x] MT-5002-05 Create Grafana datasource provisioning (Prometheus + Loki).
+- [x] MT-5002-06 Create Grafana dashboard provisioning config.
+- [x] MT-5002-07 Create `ovia-overview.json` Grafana dashboard with 9 panels.
+- [x] MT-5002-08 Add prometheus, grafana, loki, promtail, node-exporter to docker-compose.swarm.yml.
+- [x] MT-5002-09 Add prometheus_data, grafana_data, loki_data volumes.
+- [x] MT-5002-10 Update Caddyfile with /grafana/* reverse proxy.
+- [x] MT-5002-11 Update `.env.example` with Grafana credentials.
+- [x] MT-5002-12 Add stub `/metrics` endpoint to ovia-api with Prometheus text format.
+- [x] MT-5002-13 Add test for `/metrics` endpoint.
+- [x] MT-5002-14 Update delivery backlog and microtasks docs.
+
 ## Operating cadence
 - One commit every 1–2 microtasks (max ~10 minutes work).
 - Each commit includes:

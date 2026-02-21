@@ -2,7 +2,12 @@ mod error;
 mod extractors;
 mod identity;
 
-use axum::{routing::get, Json, Router};
+use axum::{
+    http::{header, StatusCode},
+    response::IntoResponse,
+    routing::get,
+    Json, Router,
+};
 use ovia_common::types::ServiceInfo;
 use ovia_config::{init_tracing, AppConfig};
 use ovia_db::identity::pg_repository::PgIdentityRepository;
@@ -21,10 +26,30 @@ async fn info() -> Json<ServiceInfo> {
     Json(ServiceInfo::new("ovia-api"))
 }
 
+async fn metrics() -> impl IntoResponse {
+    let body = "\
+# HELP ovia_up Service up indicator\n\
+# TYPE ovia_up gauge\n\
+ovia_up 1\n\
+# HELP ovia_info Service info\n\
+# TYPE ovia_info gauge\n\
+ovia_info{service=\"ovia-api\",version=\"0.1.0\"} 1\n";
+
+    (
+        StatusCode::OK,
+        [(
+            header::CONTENT_TYPE,
+            "text/plain; version=0.0.4; charset=utf-8",
+        )],
+        body,
+    )
+}
+
 fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/info", get(info))
+        .route("/metrics", get(metrics))
         .merge(identity::router())
         .with_state(state)
 }
@@ -152,6 +177,31 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn metrics_returns_prometheus_format() {
+        let (state, _pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        let app = build_router(state);
+        let resp = app
+            .oneshot(Request::get("/metrics").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(
+            resp.headers()
+                .get("content-type")
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            "text/plain; version=0.0.4; charset=utf-8"
+        );
+        let body = read_body_string(resp).await;
+        assert!(body.contains("ovia_up 1"));
+        assert!(body.contains("ovia_info{service=\"ovia-api\",version=\"0.1.0\"} 1"));
     }
 
     #[tokio::test]
