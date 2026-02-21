@@ -17,7 +17,18 @@
 
 All passed locally.
 
+## What changed (this slice)
+- Added `PgIdentityRepository` (`crates/db/src/identity/pg_repository.rs`).
+- Implemented read-only `list_mappings` with SQLx `QueryBuilder` and filters:
+  - `status`
+  - `min_confidence`
+  - `max_confidence`
+  - `limit`/`offset`
+- Added deterministic status conversion helpers (`LinkStatus::as_str`, `FromStr`).
+- Added integration-style repo test (runs when `TEST_DATABASE_URL` is set).
+
+
 ## Next microtasks
-1. Add DTOs for query filters/sort options used by `list_mappings`.
-2. Implement read-only SQLx repository for `list_mappings`.
-3. Add integration test fixture for mapping list query.
+1. Implement `confirm_mapping` transaction + audit event write.
+2. Implement `remap_mapping` transaction path.
+3. Implement `split_mapping` transaction path.

@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -9,6 +11,33 @@ pub enum LinkStatus {
     Conflict,
     Rejected,
     Ignored,
+}
+
+impl LinkStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::Verified => "verified",
+            Self::Conflict => "conflict",
+            Self::Rejected => "rejected",
+            Self::Ignored => "ignored",
+        }
+    }
+}
+
+impl FromStr for LinkStatus {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "auto" => Ok(Self::Auto),
+            "verified" => Ok(Self::Verified),
+            "conflict" => Ok(Self::Conflict),
+            "rejected" => Ok(Self::Rejected),
+            "ignored" => Ok(Self::Ignored),
+            _ => Err(format!("unknown link status: {value}")),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
