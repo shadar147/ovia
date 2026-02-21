@@ -112,6 +112,15 @@ Rule: each task should be completable in one focused sprint (<=10 min), with a c
 - [x] MT-3003-06 Run `cargo fmt`, `cargo clippy -D warnings`, `cargo test --all` — all green.
 - [x] MT-3003-07 Update delivery backlog and microtasks docs.
 
+## OVIA-5003 Backup/restore runbook (decomposed)
+- [x] MT-5003-01 Create `backend/infra/backup/backup.sh` — daily + weekly pg_dump with retention cleanup.
+- [x] MT-5003-02 Create `backend/infra/backup/restore.sh` — pg_restore with --drop flag and row-count verification.
+- [x] MT-5003-03 Create `backend/infra/backup/verify-backup.sh` — non-destructive archive validation.
+- [x] MT-5003-04 Add backup service to `docker-compose.swarm.yml` with volume and placement constraint.
+- [x] MT-5003-05 Update `.env.example` with backup retention variables.
+- [x] MT-5003-06 Write `docs/15-backup-restore-runbook.md` covering all restore scenarios and operational procedures.
+- [x] MT-5003-07 Update delivery backlog and microtasks docs.
+
 ## Operating cadence
 - One commit every 1–2 microtasks (max ~10 minutes work).
 - Each commit includes:

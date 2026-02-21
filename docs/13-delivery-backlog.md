@@ -187,9 +187,21 @@ Status legend: `todo | in_progress | review | done | blocked`
   - All 5 binaries present in built image.
 
 ### OVIA-5002 Monitoring baseline
+
 ### OVIA-5003 Backup/restore runbook
-- Status: `todo`
+- Status: `done`
 - Priority: P1
+- Owner: Claude
+- Description:
+  - Backup script (`backup.sh`): daily + weekly pg_dump with configurable retention.
+  - Restore script (`restore.sh`): pg_restore with optional drop/recreate and row-count verification.
+  - Verification script (`verify-backup.sh`): non-destructive archive validation.
+  - Docker Swarm backup service running on 24-hour loop.
+  - Comprehensive runbook covering automated backups, manual procedures, restore scenarios, monitoring, testing drills, and troubleshooting.
+- Acceptance:
+  - All scripts pass `bash -n` syntax check.
+  - `docker compose -f backend/infra/docker-compose.swarm.yml config` validates.
+  - Runbook covers same-host restore, new-host restore, and PITR (future).
 
 ---
 
