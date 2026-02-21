@@ -95,16 +95,29 @@ mod tests {
     }
 
     async fn insert_link(pool: &PgPool, org_id: Uuid, person_id: Uuid, identity_id: Uuid) -> Uuid {
+        insert_link_with(pool, org_id, person_id, identity_id, "auto", 0.8).await
+    }
+
+    async fn insert_link_with(
+        pool: &PgPool,
+        org_id: Uuid,
+        person_id: Uuid,
+        identity_id: Uuid,
+        status: &str,
+        confidence: f64,
+    ) -> Uuid {
         let id = Uuid::new_v4();
         sqlx::query(
             "insert into person_identity_links \
              (id, org_id, person_id, identity_id, status, confidence) \
-             values ($1, $2, $3, $4, 'auto', 0.8)",
+             values ($1, $2, $3, $4, $5, $6)",
         )
         .bind(id)
         .bind(org_id)
         .bind(person_id)
         .bind(identity_id)
+        .bind(status)
+        .bind(confidence)
         .execute(pool)
         .await
         .expect("insert link");
@@ -116,6 +129,13 @@ mod tests {
             .await
             .unwrap();
         serde_json::from_slice(&bytes).unwrap()
+    }
+
+    async fn read_body_string(resp: axum::http::Response<Body>) -> String {
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        String::from_utf8(bytes.to_vec()).unwrap()
     }
 
     // ── Health / Info (no DB needed) ────────────────────────────────
@@ -438,5 +458,238 @@ mod tests {
         assert_eq!(resp.status(), StatusCode::OK);
         let resp_body = read_body(resp).await;
         assert_eq!(resp_body["ok"], true);
+    }
+
+    // ── GET /team/conflict-queue ──────────────────────────────────────
+
+    #[tokio::test]
+    async fn conflict_queue_empty_returns_empty() {
+        let (state, _pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        let app = build_router(state);
+        let org = Uuid::new_v4();
+        let resp = app
+            .oneshot(
+                Request::get("/team/conflict-queue")
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = read_body(resp).await;
+        assert_eq!(body["data"], serde_json::json!([]));
+        assert_eq!(body["count"], 0);
+    }
+
+    #[tokio::test]
+    async fn conflict_queue_with_data() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        let org = Uuid::new_v4();
+        let person = insert_person(&pool, org).await;
+        let identity = insert_identity(&pool, org).await;
+        insert_link_with(&pool, org, person, identity, "conflict", 0.5).await;
+
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::get("/team/conflict-queue")
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = read_body(resp).await;
+        assert_eq!(body["count"], 1);
+        assert_eq!(body["data"].as_array().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn conflict_queue_invalid_sort_returns_400() {
+        let (state, _pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        let app = build_router(state);
+        let org = Uuid::new_v4();
+        let resp = app
+            .oneshot(
+                Request::get("/team/conflict-queue?sort_by=invalid")
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let body = read_body(resp).await;
+        assert!(body["error"].as_str().unwrap().contains("sort_by"));
+    }
+
+    // ── POST /team/conflict-queue/bulk-confirm ────────────────────────
+
+    #[tokio::test]
+    async fn bulk_confirm_returns_result() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        let org = Uuid::new_v4();
+        let person = insert_person(&pool, org).await;
+        let identity = insert_identity(&pool, org).await;
+        let link_id = insert_link_with(&pool, org, person, identity, "conflict", 0.5).await;
+
+        let app = build_router(state);
+        let body = serde_json::json!({
+            "link_ids": [link_id],
+            "verified_by": "tester"
+        });
+        let resp = app
+            .oneshot(
+                Request::post("/team/conflict-queue/bulk-confirm")
+                    .header("X-Org-Id", org.to_string())
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let resp_body = read_body(resp).await;
+        assert_eq!(resp_body["confirmed"], 1);
+        assert_eq!(resp_body["failed"], serde_json::json!([]));
+    }
+
+    #[tokio::test]
+    async fn bulk_confirm_empty_verified_by_returns_400() {
+        let (state, _pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        let app = build_router(state);
+        let org = Uuid::new_v4();
+        let body = serde_json::json!({
+            "link_ids": [Uuid::new_v4()],
+            "verified_by": ""
+        });
+        let resp = app
+            .oneshot(
+                Request::post("/team/conflict-queue/bulk-confirm")
+                    .header("X-Org-Id", org.to_string())
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let resp_body = read_body(resp).await;
+        assert!(resp_body["error"].as_str().unwrap().contains("verified_by"));
+    }
+
+    #[tokio::test]
+    async fn bulk_confirm_empty_link_ids_returns_400() {
+        let (state, _pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        let app = build_router(state);
+        let org = Uuid::new_v4();
+        let body = serde_json::json!({
+            "link_ids": [],
+            "verified_by": "tester"
+        });
+        let resp = app
+            .oneshot(
+                Request::post("/team/conflict-queue/bulk-confirm")
+                    .header("X-Org-Id", org.to_string())
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let resp_body = read_body(resp).await;
+        assert!(resp_body["error"].as_str().unwrap().contains("link_ids"));
+    }
+
+    // ── GET /team/conflict-queue/export ───────────────────────────────
+
+    #[tokio::test]
+    async fn conflict_queue_export_csv() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        let org = Uuid::new_v4();
+        let person = insert_person(&pool, org).await;
+        let identity = insert_identity(&pool, org).await;
+        insert_link_with(&pool, org, person, identity, "conflict", 0.5).await;
+
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::get("/team/conflict-queue/export")
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(
+            resp.headers()
+                .get("content-type")
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            "text/csv"
+        );
+        let body = read_body_string(resp).await;
+        let lines: Vec<&str> = body.lines().collect();
+        assert_eq!(
+            lines[0],
+            "id,person_id,identity_id,status,confidence,created_at"
+        );
+        assert!(lines.len() >= 2);
+    }
+
+    // ── GET /team/conflict-queue/stats ────────────────────────────────
+
+    #[tokio::test]
+    async fn conflict_queue_stats_returns_counts() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        let org = Uuid::new_v4();
+        let person = insert_person(&pool, org).await;
+        let identity = insert_identity(&pool, org).await;
+        insert_link_with(&pool, org, person, identity, "conflict", 0.5).await;
+
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::get("/team/conflict-queue/stats")
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = read_body(resp).await;
+        assert_eq!(body["total"], 1);
+        assert!(body["avg_confidence"].as_f64().is_some());
+        assert!(body["oldest_created_at"].as_str().is_some());
     }
 }

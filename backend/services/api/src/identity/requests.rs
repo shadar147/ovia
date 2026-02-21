@@ -19,3 +19,9 @@ pub struct SplitRequest {
     pub link_id: Uuid,
     pub verified_by: String,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct BulkConfirmRequest {
+    pub link_ids: Vec<Uuid>,
+    pub verified_by: String,
+}

@@ -2,7 +2,8 @@ use async_trait::async_trait;
 use uuid::Uuid;
 
 use crate::identity::models::{
-    Identity, IdentityEvent, IdentityMappingFilter, Person, PersonIdentityLink,
+    BulkConfirmResult, ConflictQueueFilter, ConflictQueueStats, Identity, IdentityEvent,
+    IdentityMappingFilter, Person, PersonIdentityLink,
 };
 use ovia_common::error::OviaResult;
 
@@ -45,6 +46,21 @@ pub trait PersonIdentityLinkRepository: Send + Sync {
 
     async fn split_mapping(&self, org_id: Uuid, link_id: Uuid, verified_by: &str)
         -> OviaResult<()>;
+
+    async fn list_conflicts(
+        &self,
+        org_id: Uuid,
+        filter: ConflictQueueFilter,
+    ) -> OviaResult<Vec<PersonIdentityLink>>;
+
+    async fn bulk_confirm_conflicts(
+        &self,
+        org_id: Uuid,
+        link_ids: Vec<Uuid>,
+        verified_by: &str,
+    ) -> OviaResult<BulkConfirmResult>;
+
+    async fn conflict_queue_stats(&self, org_id: Uuid) -> OviaResult<ConflictQueueStats>;
 }
 
 #[async_trait]

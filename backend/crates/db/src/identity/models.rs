@@ -102,3 +102,25 @@ pub struct IdentityMappingFilter {
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ConflictQueueFilter {
+    pub min_confidence: Option<f32>,
+    pub max_confidence: Option<f32>,
+    pub sort_by: Option<String>,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkConfirmResult {
+    pub confirmed: usize,
+    pub failed: Vec<Uuid>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConflictQueueStats {
+    pub total: i64,
+    pub avg_confidence: Option<f64>,
+    pub oldest_created_at: Option<DateTime<Utc>>,
+}

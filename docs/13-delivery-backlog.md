@@ -90,7 +90,7 @@ Status legend: `todo | in_progress | review | done | blocked`
   - Deterministic fixture tests across 15+ scenarios.
 
 ### OVIA-2002 Conflict queue workflow
-- Status: `todo`
+- Status: `done`
 - Priority: P1
 - Depends on: OVIA-2001, OVIA-1003
 - Description:

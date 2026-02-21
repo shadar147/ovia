@@ -5,7 +5,10 @@ use chrono::Utc;
 use sqlx::{postgres::PgRow, PgPool, Postgres, QueryBuilder, Row, Transaction};
 use uuid::Uuid;
 
-use crate::identity::models::{IdentityMappingFilter, LinkStatus, PersonIdentityLink};
+use crate::identity::models::{
+    BulkConfirmResult, ConflictQueueFilter, ConflictQueueStats, IdentityMappingFilter, LinkStatus,
+    PersonIdentityLink,
+};
 use crate::identity::repositories::PersonIdentityLinkRepository;
 use ovia_common::error::{OviaError, OviaResult};
 
@@ -268,6 +271,109 @@ impl PersonIdentityLinkRepository for PgIdentityRepository {
             .map_err(|e| OviaError::Database(e.to_string()))?;
 
         Ok(())
+    }
+
+    async fn list_conflicts(
+        &self,
+        org_id: Uuid,
+        filter: ConflictQueueFilter,
+    ) -> OviaResult<Vec<PersonIdentityLink>> {
+        let mut qb = QueryBuilder::new(
+            "select id, org_id, person_id, identity_id, status, confidence::float4 as confidence, \
+             valid_from, valid_to, verified_by, verified_at, created_at, updated_at \
+             from person_identity_links where org_id = ",
+        );
+
+        qb.push_bind(org_id);
+        qb.push(" and status = 'conflict' and valid_to is null");
+
+        if let Some(min_confidence) = filter.min_confidence {
+            qb.push(" and confidence >= ").push_bind(min_confidence);
+        }
+        if let Some(max_confidence) = filter.max_confidence {
+            qb.push(" and confidence <= ").push_bind(max_confidence);
+        }
+
+        match filter.sort_by.as_deref() {
+            Some("confidence_asc") => qb.push(" order by confidence asc"),
+            _ => qb.push(" order by created_at desc"),
+        };
+
+        qb.push(" limit ").push_bind(filter.limit.unwrap_or(50));
+        qb.push(" offset ").push_bind(filter.offset.unwrap_or(0));
+
+        let rows = qb
+            .build()
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| OviaError::Database(e.to_string()))?;
+
+        rows.into_iter().map(Self::map_link_row).collect()
+    }
+
+    async fn bulk_confirm_conflicts(
+        &self,
+        org_id: Uuid,
+        link_ids: Vec<Uuid>,
+        verified_by: &str,
+    ) -> OviaResult<BulkConfirmResult> {
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| OviaError::Database(e.to_string()))?;
+
+        let now = Utc::now();
+        let mut confirmed: usize = 0;
+        let mut failed: Vec<Uuid> = Vec::new();
+
+        for link_id in link_ids {
+            let result = sqlx::query(
+                "update person_identity_links \
+                 set status = 'verified', verified_by = $1, verified_at = $2, updated_at = $2 \
+                 where org_id = $3 and id = $4 and status = 'conflict' and valid_to is null",
+            )
+            .bind(verified_by)
+            .bind(now)
+            .bind(org_id)
+            .bind(link_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| OviaError::Database(e.to_string()))?;
+
+            if result.rows_affected() == 1 {
+                Self::append_event(&mut tx, org_id, link_id, "bulk_confirm", verified_by, None)
+                    .await?;
+                confirmed += 1;
+            } else {
+                failed.push(link_id);
+            }
+        }
+
+        tx.commit()
+            .await
+            .map_err(|e| OviaError::Database(e.to_string()))?;
+
+        Ok(BulkConfirmResult { confirmed, failed })
+    }
+
+    async fn conflict_queue_stats(&self, org_id: Uuid) -> OviaResult<ConflictQueueStats> {
+        let row = sqlx::query(
+            "select count(*) as total, avg(confidence::float8) as avg_confidence, \
+             min(created_at) as oldest_created_at \
+             from person_identity_links \
+             where org_id = $1 and status = 'conflict' and valid_to is null",
+        )
+        .bind(org_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| OviaError::Database(e.to_string()))?;
+
+        Ok(ConflictQueueStats {
+            total: row.get("total"),
+            avg_confidence: row.get("avg_confidence"),
+            oldest_created_at: row.get("oldest_created_at"),
+        })
     }
 }
 
@@ -701,5 +807,331 @@ mod tests {
 
         let result = repo.split_mapping(org, link_id, "actor").await;
         assert!(matches!(result, Err(OviaError::NotFound(_))));
+    }
+
+    // ── list_conflicts tests (MT-2002-01, MT-2002-02) ─────────────
+
+    #[tokio::test]
+    async fn list_conflicts_returns_only_conflict_status() {
+        let (repo, pool) = match test_repo().await {
+            Some(r) => r,
+            None => return,
+        };
+        let org = Uuid::new_v4();
+        let p1 = insert_person(&pool, org).await;
+        let p2 = insert_person(&pool, org).await;
+        let i1 = insert_identity(&pool, org).await;
+        let i2 = insert_identity(&pool, org).await;
+
+        insert_link(&pool, org, p1, i1, "auto", 0.8).await;
+        let conflict_id = insert_link(&pool, org, p2, i2, "conflict", 0.5).await;
+
+        let results = repo
+            .list_conflicts(org, ConflictQueueFilter::default())
+            .await
+            .expect("list_conflicts should succeed");
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, conflict_id);
+        assert_eq!(results[0].status, LinkStatus::Conflict);
+    }
+
+    #[tokio::test]
+    async fn list_conflicts_excludes_closed_links() {
+        let (repo, pool) = match test_repo().await {
+            Some(r) => r,
+            None => return,
+        };
+        let org = Uuid::new_v4();
+        let p = insert_person(&pool, org).await;
+        let i = insert_identity(&pool, org).await;
+
+        // Insert a conflict link that has valid_to set (closed)
+        let id = Uuid::new_v4();
+        sqlx::query(
+            "insert into person_identity_links \
+             (id, org_id, person_id, identity_id, status, confidence, valid_to) \
+             values ($1, $2, $3, $4, 'conflict', 0.5, now())",
+        )
+        .bind(id)
+        .bind(org)
+        .bind(p)
+        .bind(i)
+        .execute(&pool)
+        .await
+        .expect("insert closed conflict link");
+
+        let results = repo
+            .list_conflicts(org, ConflictQueueFilter::default())
+            .await
+            .expect("list_conflicts should succeed");
+
+        assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn list_conflicts_sort_confidence_asc() {
+        let (repo, pool) = match test_repo().await {
+            Some(r) => r,
+            None => return,
+        };
+        let org = Uuid::new_v4();
+
+        let p1 = insert_person(&pool, org).await;
+        let p2 = insert_person(&pool, org).await;
+        let p3 = insert_person(&pool, org).await;
+        let i1 = insert_identity(&pool, org).await;
+        let i2 = insert_identity(&pool, org).await;
+        let i3 = insert_identity(&pool, org).await;
+
+        insert_link(&pool, org, p1, i1, "conflict", 0.8).await;
+        insert_link(&pool, org, p2, i2, "conflict", 0.3).await;
+        insert_link(&pool, org, p3, i3, "conflict", 0.6).await;
+
+        let filter = ConflictQueueFilter {
+            sort_by: Some("confidence_asc".to_string()),
+            ..Default::default()
+        };
+        let results = repo
+            .list_conflicts(org, filter)
+            .await
+            .expect("should succeed");
+
+        assert_eq!(results.len(), 3);
+        assert!((results[0].confidence - 0.3).abs() < 0.01);
+        assert!((results[1].confidence - 0.6).abs() < 0.01);
+        assert!((results[2].confidence - 0.8).abs() < 0.01);
+    }
+
+    #[tokio::test]
+    async fn list_conflicts_sort_age_desc() {
+        let (repo, pool) = match test_repo().await {
+            Some(r) => r,
+            None => return,
+        };
+        let org = Uuid::new_v4();
+
+        let p1 = insert_person(&pool, org).await;
+        let i1 = insert_identity(&pool, org).await;
+        let first = insert_link(&pool, org, p1, i1, "conflict", 0.5).await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        let p2 = insert_person(&pool, org).await;
+        let i2 = insert_identity(&pool, org).await;
+        let second = insert_link(&pool, org, p2, i2, "conflict", 0.6).await;
+
+        let filter = ConflictQueueFilter {
+            sort_by: Some("age_desc".to_string()),
+            ..Default::default()
+        };
+        let results = repo
+            .list_conflicts(org, filter)
+            .await
+            .expect("should succeed");
+
+        assert_eq!(results.len(), 2);
+        // Newest first (created_at desc)
+        assert_eq!(results[0].id, second);
+        assert_eq!(results[1].id, first);
+    }
+
+    #[tokio::test]
+    async fn list_conflicts_filters_by_confidence_range() {
+        let (repo, pool) = match test_repo().await {
+            Some(r) => r,
+            None => return,
+        };
+        let org = Uuid::new_v4();
+
+        let p1 = insert_person(&pool, org).await;
+        let p2 = insert_person(&pool, org).await;
+        let p3 = insert_person(&pool, org).await;
+        let i1 = insert_identity(&pool, org).await;
+        let i2 = insert_identity(&pool, org).await;
+        let i3 = insert_identity(&pool, org).await;
+
+        insert_link(&pool, org, p1, i1, "conflict", 0.3).await;
+        insert_link(&pool, org, p2, i2, "conflict", 0.6).await;
+        insert_link(&pool, org, p3, i3, "conflict", 0.9).await;
+
+        let filter = ConflictQueueFilter {
+            min_confidence: Some(0.5),
+            max_confidence: Some(0.7),
+            ..Default::default()
+        };
+        let results = repo
+            .list_conflicts(org, filter)
+            .await
+            .expect("should succeed");
+
+        assert_eq!(results.len(), 1);
+        assert!((results[0].confidence - 0.6).abs() < 0.01);
+    }
+
+    #[tokio::test]
+    async fn list_conflicts_respects_limit_offset() {
+        let (repo, pool) = match test_repo().await {
+            Some(r) => r,
+            None => return,
+        };
+        let org = Uuid::new_v4();
+
+        for _ in 0..3 {
+            let p = insert_person(&pool, org).await;
+            let i = insert_identity(&pool, org).await;
+            insert_link(&pool, org, p, i, "conflict", 0.5).await;
+        }
+
+        let filter = ConflictQueueFilter {
+            limit: Some(2),
+            ..Default::default()
+        };
+        let results = repo
+            .list_conflicts(org, filter)
+            .await
+            .expect("should succeed");
+        assert_eq!(results.len(), 2);
+
+        let filter = ConflictQueueFilter {
+            limit: Some(2),
+            offset: Some(2),
+            ..Default::default()
+        };
+        let results = repo
+            .list_conflicts(org, filter)
+            .await
+            .expect("should succeed");
+        assert_eq!(results.len(), 1);
+    }
+
+    // ── bulk_confirm_conflicts tests (MT-2002-03) ─────────────────
+
+    #[tokio::test]
+    async fn bulk_confirm_happy_path() {
+        let (repo, pool) = match test_repo().await {
+            Some(r) => r,
+            None => return,
+        };
+        let org = Uuid::new_v4();
+
+        let p1 = insert_person(&pool, org).await;
+        let p2 = insert_person(&pool, org).await;
+        let i1 = insert_identity(&pool, org).await;
+        let i2 = insert_identity(&pool, org).await;
+
+        let l1 = insert_link(&pool, org, p1, i1, "conflict", 0.5).await;
+        let l2 = insert_link(&pool, org, p2, i2, "conflict", 0.6).await;
+
+        let result = repo
+            .bulk_confirm_conflicts(org, vec![l1, l2], "reviewer")
+            .await
+            .expect("bulk confirm should succeed");
+
+        assert_eq!(result.confirmed, 2);
+        assert!(result.failed.is_empty());
+
+        // Verify status changed
+        let row1 = fetch_link_row(&pool, l1).await;
+        let status1: String = row1.get("status");
+        assert_eq!(status1, "verified");
+
+        let row2 = fetch_link_row(&pool, l2).await;
+        let status2: String = row2.get("status");
+        assert_eq!(status2, "verified");
+
+        // Verify audit events
+        assert_eq!(count_events(&pool, l1).await, 1);
+        assert_eq!(count_events(&pool, l2).await, 1);
+    }
+
+    #[tokio::test]
+    async fn bulk_confirm_partial_failure() {
+        let (repo, pool) = match test_repo().await {
+            Some(r) => r,
+            None => return,
+        };
+        let org = Uuid::new_v4();
+
+        let p = insert_person(&pool, org).await;
+        let i = insert_identity(&pool, org).await;
+
+        let valid_id = insert_link(&pool, org, p, i, "conflict", 0.5).await;
+        let invalid_id = Uuid::new_v4(); // does not exist
+
+        let result = repo
+            .bulk_confirm_conflicts(org, vec![valid_id, invalid_id], "reviewer")
+            .await
+            .expect("bulk confirm should succeed");
+
+        assert_eq!(result.confirmed, 1);
+        assert_eq!(result.failed, vec![invalid_id]);
+    }
+
+    #[tokio::test]
+    async fn bulk_confirm_empty_list() {
+        let (repo, _pool) = match test_repo().await {
+            Some(r) => r,
+            None => return,
+        };
+
+        let result = repo
+            .bulk_confirm_conflicts(Uuid::new_v4(), vec![], "reviewer")
+            .await
+            .expect("bulk confirm empty should succeed");
+
+        assert_eq!(result.confirmed, 0);
+        assert!(result.failed.is_empty());
+    }
+
+    // ── conflict_queue_stats tests (MT-2002-05) ───────────────────
+
+    #[tokio::test]
+    async fn conflict_queue_stats_empty() {
+        let (repo, _pool) = match test_repo().await {
+            Some(r) => r,
+            None => return,
+        };
+
+        let stats = repo
+            .conflict_queue_stats(Uuid::new_v4())
+            .await
+            .expect("stats should succeed");
+
+        assert_eq!(stats.total, 0);
+        assert!(stats.avg_confidence.is_none());
+        assert!(stats.oldest_created_at.is_none());
+    }
+
+    #[tokio::test]
+    async fn conflict_queue_stats_with_data() {
+        let (repo, pool) = match test_repo().await {
+            Some(r) => r,
+            None => return,
+        };
+        let org = Uuid::new_v4();
+
+        let p1 = insert_person(&pool, org).await;
+        let p2 = insert_person(&pool, org).await;
+        let i1 = insert_identity(&pool, org).await;
+        let i2 = insert_identity(&pool, org).await;
+
+        insert_link(&pool, org, p1, i1, "conflict", 0.4).await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        insert_link(&pool, org, p2, i2, "conflict", 0.6).await;
+
+        // Also insert a non-conflict link — should not affect stats
+        let p3 = insert_person(&pool, org).await;
+        let i3 = insert_identity(&pool, org).await;
+        insert_link(&pool, org, p3, i3, "auto", 0.9).await;
+
+        let stats = repo
+            .conflict_queue_stats(org)
+            .await
+            .expect("stats should succeed");
+
+        assert_eq!(stats.total, 2);
+        let avg = stats.avg_confidence.expect("should have avg");
+        assert!((avg - 0.5).abs() < 0.01);
+        assert!(stats.oldest_created_at.is_some());
     }
 }

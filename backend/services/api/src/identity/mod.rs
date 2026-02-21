@@ -1,3 +1,4 @@
+pub mod formatters;
 pub mod handlers;
 pub mod requests;
 pub mod responses;
@@ -21,5 +22,18 @@ pub fn router() -> Router<AppState> {
         .route(
             "/team/identity-mappings/split",
             post(handlers::split_mapping),
+        )
+        .route("/team/conflict-queue", get(handlers::list_conflicts))
+        .route(
+            "/team/conflict-queue/bulk-confirm",
+            post(handlers::bulk_confirm_conflicts),
+        )
+        .route(
+            "/team/conflict-queue/export",
+            get(handlers::export_conflicts_csv),
+        )
+        .route(
+            "/team/conflict-queue/stats",
+            get(handlers::conflict_queue_stats),
         )
 }

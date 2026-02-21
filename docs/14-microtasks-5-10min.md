@@ -60,11 +60,11 @@ Rule: each task should be completable in one focused sprint (<=10 min), with a c
 - [x] MT-2001-10 Add fixture tests (at least 15 scenarios).
 
 ## OVIA-2002 Conflict queue workflow (decomposed)
-- [ ] MT-2002-01 Add conflict queue query endpoint.
-- [ ] MT-2002-02 Add sort options (confidence asc, age desc).
-- [ ] MT-2002-03 Add bulk confirm endpoint.
-- [ ] MT-2002-04 Add CSV export formatter.
-- [ ] MT-2002-05 Add metrics counters for queue size.
+- [x] MT-2002-01 Add conflict queue query endpoint.
+- [x] MT-2002-02 Add sort options (confidence asc, age desc).
+- [x] MT-2002-03 Add bulk confirm endpoint.
+- [x] MT-2002-04 Add CSV export formatter.
+- [x] MT-2002-05 Add metrics counters for queue size.
 
 ## Operating cadence
 - One commit every 1–2 microtasks (max ~10 minutes work).
