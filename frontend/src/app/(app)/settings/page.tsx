@@ -1,0 +1,8 @@
+export default function SettingsPage() {
+  return (
+    <div>
+      <h1 className="text-2xl font-semibold">Settings</h1>
+      <p className="mt-2 text-muted-foreground">Connections, sync policy, roles — coming in Phase 5.</p>
+    </div>
+  );
+}
