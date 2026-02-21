@@ -36,7 +36,7 @@ Status legend: `todo | in_progress | review | done | blocked`
 - Priority: P0
 - Depends on: OVIA-0001
 - Description:
-  - Validate and refine `db/migrations/0001_identity_v2.sql`.
+  - Validate and refine `backend/db/migrations/0001_identity_v2.sql`.
   - Add missing indexes for listing/filtering identity conflicts.
 - Acceptance:
   - Migration applies on clean DB and existing DB.

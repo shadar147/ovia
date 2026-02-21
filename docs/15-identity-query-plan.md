@@ -62,17 +62,17 @@ When PostgreSQL is available:
 
 1. Apply on clean DB
 ```bash
-psql "$DATABASE_URL" -f db/migrations/0001_identity_v2.sql
+psql "$DATABASE_URL" -f backend/db/migrations/0001_identity_v2.sql
 ```
 
 2. Re-apply (idempotency check)
 ```bash
-psql "$DATABASE_URL" -f db/migrations/0001_identity_v2.sql
+psql "$DATABASE_URL" -f backend/db/migrations/0001_identity_v2.sql
 ```
 
 3. Apply on existing schema snapshot (if available)
 ```bash
-psql "$EXISTING_DB_URL" -f db/migrations/0001_identity_v2.sql
+psql "$EXISTING_DB_URL" -f backend/db/migrations/0001_identity_v2.sql
 ```
 
 4. Verify index creation

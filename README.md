@@ -4,16 +4,21 @@
 
 Platform concept for engineering intelligence across Jira, GitLab, and Confluence (Rust backend, Docker Swarm deploy).
 
-## What is this repo
-Initial product/technical blueprint for launching Ovia:
-- business framing and value proposition
-- implementation roadmap
-- system architecture
-- module breakdown
-- suggested tech stack
-- launch checklist for Hetzner
+## Repo layout
+- `backend/` — all backend code, migrations, and local infra
+- `docs/` — product/architecture planning docs
+- `prototype/` — clickable product prototype
+- `design/` — wireframes and visual assets
 
-## Documents
+## Backend quick start
+```bash
+cd backend
+cargo fmt --all --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --all
+```
+
+## Key docs
 - `docs/01-business-vision.md`
 - `docs/02-solution-overview.md`
 - `docs/03-architecture.md`
@@ -23,8 +28,14 @@ Initial product/technical blueprint for launching Ovia:
 - `docs/07-launch-checklist-hetzner.md`
 - `docs/08-ui-prototype.md`
 - `docs/09-wireframe-spec-laptop-first.md`
-
-- `prototype/v1/README.md`
+- `docs/10-user-flows.md`
+- `docs/11-screen-details-v2.md`
 - `docs/12-identity-model-v2.md`
-- `db/migrations/0001_identity_v2.sql`
-- `docs/14-microtasks-5-10min.md`- `docs/15-identity-query-plan.md`
+- `docs/13-delivery-backlog.md`
+- `docs/14-microtasks-5-10min.md`
+- `docs/15-identity-query-plan.md`
+
+## Backend references
+- `backend/db/migrations/0001_identity_v2.sql`
+- `backend/infra/docker-compose.dev.yml`
+- `prototype/v1/README.md`

@@ -8,6 +8,9 @@ on:
 jobs:
   rust-checks:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,4 +32,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-output
-          path: test-output.log
+          path: backend/test-output.log
