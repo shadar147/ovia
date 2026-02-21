@@ -39,3 +39,5 @@ cargo test --all
 - `backend/db/migrations/0001_identity_v2.sql`
 - `backend/infra/docker-compose.dev.yml`
 - `prototype/v1/README.md`
+- `ops/skills/claude-relay/SKILL.md`
+- `backend/scripts/claude-relay.sh`
