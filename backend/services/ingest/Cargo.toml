@@ -10,5 +10,20 @@ path = "src/main.rs"
 [dependencies]
 tokio = { workspace = true }
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 ovia-common = { workspace = true }
 ovia-config = { workspace = true }
+ovia-db = { workspace = true }
+reqwest = { workspace = true }
+base64 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+async-trait = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+dotenvy = { workspace = true }
+
+[dev-dependencies]
+wiremock = { workspace = true }

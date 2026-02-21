@@ -19,6 +19,10 @@ pub trait IdentityRepository: Send + Sync {
     async fn get_by_id(&self, org_id: Uuid, id: Uuid) -> OviaResult<Option<Identity>>;
     async fn create(&self, identity: Identity) -> OviaResult<Identity>;
     async fn update(&self, identity: Identity) -> OviaResult<Identity>;
+
+    /// Insert or update an identity keyed by (org_id, source, external_id).
+    /// On conflict, updates mutable fields (email, display_name, etc.) but preserves first_seen_at.
+    async fn upsert_by_external_id(&self, identity: Identity) -> OviaResult<Identity>;
 }
 
 #[async_trait]

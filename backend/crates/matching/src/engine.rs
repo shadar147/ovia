@@ -111,6 +111,7 @@ mod tests {
             is_service_account,
             first_seen_at: None,
             last_seen_at: None,
+            raw_ref: None,
         }
     }
 
