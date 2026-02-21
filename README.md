@@ -10,6 +10,12 @@ Platform concept for engineering intelligence across Jira, GitLab, and Confluenc
 - `prototype/` — clickable product prototype
 - `design/` — wireframes and visual assets
 
+## Setup
+```bash
+git config core.hooksPath .githooks
+```
+This enables the pre-commit hook that runs `cargo fmt --check` before each commit.
+
 ## Backend quick start
 ```bash
 cd backend
