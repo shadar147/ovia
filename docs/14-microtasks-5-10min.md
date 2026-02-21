@@ -66,6 +66,15 @@ Rule: each task should be completable in one focused sprint (<=10 min), with a c
 - [x] MT-2002-04 Add CSV export formatter.
 - [x] MT-2002-05 Add metrics counters for queue size.
 
+## OVIA-5001 Swarm stack manifests (decomposed)
+- [x] MT-5001-01 Create multi-stage `backend/Dockerfile` (builder + runtime).
+- [x] MT-5001-02 Create `backend/.dockerignore`.
+- [x] MT-5001-03 Create `backend/infra/docker-compose.swarm.yml` with all services.
+- [x] MT-5001-04 Create `backend/infra/Caddyfile` for reverse proxy.
+- [x] MT-5001-05 Create `backend/infra/init-db.sh` migration script.
+- [x] MT-5001-06 Create `.env.example` with production variable template.
+- [x] MT-5001-07 Update delivery backlog status to done.
+
 ## Operating cadence
 - One commit every 1–2 microtasks (max ~10 minutes work).
 - Each commit includes:

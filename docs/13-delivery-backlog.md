@@ -126,6 +126,21 @@ Status legend: `todo | in_progress | review | done | blocked`
 ## Epic 5 — Deployment & Ops
 
 ### OVIA-5001 Swarm stack manifests
+- Status: `done`
+- Priority: P1
+- Owner: Claude
+- Description:
+  - Multi-stage Dockerfile for all Rust services (single image, 5 binaries).
+  - Docker Swarm compose with postgres, redis, caddy, migrate init, all 5 services.
+  - Caddyfile for reverse proxy with auto-TLS.
+  - DB migration init script.
+  - `.env.example` for production secrets.
+  - `.dockerignore` for build context.
+- Acceptance:
+  - `docker compose -f backend/infra/docker-compose.swarm.yml config` validates.
+  - `docker build -t ovia-backend backend/` succeeds.
+  - All 5 binaries present in built image.
+
 ### OVIA-5002 Monitoring baseline
 ### OVIA-5003 Backup/restore runbook
 - Status: `todo`

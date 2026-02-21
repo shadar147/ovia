@@ -1,0 +1,10 @@
+target/
+.git/
+docs/
+*.md
+infra/docker-compose.dev.yml
+infra/docker-compose.swarm.yml
+infra/Caddyfile
+infra/init-db.sh
+.env
+.env.*
