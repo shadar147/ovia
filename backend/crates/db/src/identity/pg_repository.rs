@@ -296,14 +296,12 @@ mod tests {
 
     async fn insert_identity(pool: &PgPool, org_id: Uuid) -> Uuid {
         let id = Uuid::new_v4();
-        sqlx::query(
-            "insert into identities (id, org_id, source) values ($1, $2, 'test-source')",
-        )
-        .bind(id)
-        .bind(org_id)
-        .execute(pool)
-        .await
-        .expect("insert identity");
+        sqlx::query("insert into identities (id, org_id, source) values ($1, $2, 'test-source')")
+            .bind(id)
+            .bind(org_id)
+            .execute(pool)
+            .await
+            .expect("insert identity");
         id
     }
 
@@ -356,13 +354,11 @@ mod tests {
     }
 
     async fn count_events(pool: &PgPool, link_id: Uuid) -> i64 {
-        sqlx::query_scalar::<_, i64>(
-            "select count(*) from identity_events where link_id = $1",
-        )
-        .bind(link_id)
-        .fetch_one(pool)
-        .await
-        .expect("count events")
+        sqlx::query_scalar::<_, i64>("select count(*) from identity_events where link_id = $1")
+            .bind(link_id)
+            .fetch_one(pool)
+            .await
+            .expect("count events")
     }
 
     async fn fetch_link_row(pool: &PgPool, link_id: Uuid) -> PgRow {
@@ -435,7 +431,10 @@ mod tests {
             status: Some(LinkStatus::Auto),
             ..Default::default()
         };
-        let results = repo.list_mappings(org, filter).await.expect("should succeed");
+        let results = repo
+            .list_mappings(org, filter)
+            .await
+            .expect("should succeed");
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].status, LinkStatus::Auto);
@@ -464,7 +463,10 @@ mod tests {
             max_confidence: Some(0.8),
             ..Default::default()
         };
-        let results = repo.list_mappings(org, filter).await.expect("should succeed");
+        let results = repo
+            .list_mappings(org, filter)
+            .await
+            .expect("should succeed");
 
         assert_eq!(results.len(), 1);
         assert!((results[0].confidence - 0.6).abs() < 0.01);
@@ -487,7 +489,10 @@ mod tests {
             limit: Some(2),
             ..Default::default()
         };
-        let results = repo.list_mappings(org, filter).await.expect("should succeed");
+        let results = repo
+            .list_mappings(org, filter)
+            .await
+            .expect("should succeed");
         assert_eq!(results.len(), 2);
 
         let filter = IdentityMappingFilter {
@@ -495,7 +500,10 @@ mod tests {
             offset: Some(2),
             ..Default::default()
         };
-        let results = repo.list_mappings(org, filter).await.expect("should succeed");
+        let results = repo
+            .list_mappings(org, filter)
+            .await
+            .expect("should succeed");
         assert_eq!(results.len(), 1);
     }
 
@@ -599,13 +607,12 @@ mod tests {
         assert!((new_confidence - 1.0).abs() < 0.01);
 
         // Audit event on new link with remap action + JSON payload
-        let event_row = sqlx::query(
-            "select action, payload from identity_events where link_id = $1",
-        )
-        .bind(new_link_id)
-        .fetch_one(&pool)
-        .await
-        .expect("event should exist");
+        let event_row =
+            sqlx::query("select action, payload from identity_events where link_id = $1")
+                .bind(new_link_id)
+                .fetch_one(&pool)
+                .await
+                .expect("event should exist");
 
         let action: String = event_row.get("action");
         let payload: Option<serde_json::Value> = event_row.get("payload");
@@ -636,7 +643,9 @@ mod tests {
         let i = insert_identity(&pool, org).await;
         let link_id = insert_closed_link(&pool, org, p, i).await;
 
-        let result = repo.remap_mapping(org, link_id, Uuid::new_v4(), "actor").await;
+        let result = repo
+            .remap_mapping(org, link_id, Uuid::new_v4(), "actor")
+            .await;
         assert!(matches!(result, Err(OviaError::NotFound(_))));
     }
 

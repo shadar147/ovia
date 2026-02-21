@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Run cargo fmt check if any Rust files are staged
+if git diff --cached --name-only --diff-filter=ACMR | grep -q '\.rs$'; then
+    echo "pre-commit: running cargo fmt --check ..."
+    (cd backend && cargo fmt --all --check)
+fi
