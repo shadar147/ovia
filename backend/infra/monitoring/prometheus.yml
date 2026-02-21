@@ -1,0 +1,34 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "alert_rules.yml"
+
+scrape_configs:
+  - job_name: "ovia-api"
+    static_configs:
+      - targets: ["ovia-api:8080"]
+    metrics_path: /metrics
+
+  - job_name: "ovia-metrics"
+    static_configs:
+      - targets: ["ovia-metrics:8080"]
+    metrics_path: /metrics
+
+  - job_name: "ovia-ingest"
+    static_configs:
+      - targets: ["ovia-ingest:8080"]
+    metrics_path: /metrics
+
+  - job_name: "postgres"
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+
+  - job_name: "redis"
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+
+  - job_name: "node"
+    static_configs:
+      - targets: ["node-exporter:9100"]

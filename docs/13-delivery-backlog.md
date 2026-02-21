@@ -208,6 +208,26 @@ Status legend: `todo | in_progress | review | done | blocked`
   - All 5 binaries present in built image.
 
 ### OVIA-5002 Monitoring baseline
+- Status: `done`
+- Priority: P1
+- Owner: Claude
+- Description:
+  - Prometheus config with scrape targets for ovia-api, ovia-metrics, ovia-ingest, postgres-exporter, redis-exporter, node-exporter.
+  - Alert rules: HighSyncFailureRate, ApiHighLatency, DatabaseConnectionPoolExhausted, HighErrorRate, DiskSpaceRunningLow, PostgresReplicationLag.
+  - Grafana auto-provisioning: Prometheus + Loki datasources, Ovia Overview dashboard with uptime, request rate, error rate, latency percentiles, DB pool, sync status, system resources.
+  - Loki local config with TSDB store and 7-day retention.
+  - Promtail config for Docker container log collection via socket.
+  - Docker Compose services: prometheus, grafana, loki, promtail, node-exporter with proper deploy constraints and volumes.
+  - Caddyfile reverse proxy for Grafana at /grafana/*.
+  - Stub /metrics endpoint on ovia-api returning Prometheus text format.
+  - .env.example updated with GRAFANA_ADMIN_USER and GRAFANA_ADMIN_PASSWORD.
+- Acceptance:
+  - `docker compose -f backend/infra/docker-compose.swarm.yml config` validates.
+  - All YAML/JSON configs are syntactically valid.
+  - /metrics endpoint returns Prometheus text exposition format.
+- Tests:
+  - Handler test for /metrics endpoint verifying content-type and body content.
+
 ### OVIA-5003 Backup/restore runbook
 - Status: `todo`
 - Priority: P1

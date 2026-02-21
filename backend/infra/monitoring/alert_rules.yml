@@ -1,0 +1,65 @@
+groups:
+  - name: ovia_alerts
+    rules:
+      - alert: HighSyncFailureRate
+        expr: |
+          increase(sync_watermarks_total{status="failed"}[1h]) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High sync failure rate"
+          description: "More than 3 sync failures in the last hour for {{ $labels.source }}."
+
+      - alert: ApiHighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API p95 latency above 2s"
+          description: "Service {{ $labels.service }} p95 request latency is {{ $value }}s."
+
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          db_pool_connections_available == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection pool exhausted"
+          description: "Service {{ $labels.service }} has 0 available DB connections."
+
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m])) by (service)
+          /
+          sum(rate(http_requests_total[5m])) by (service)
+          > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP 5xx error rate above 5%"
+          description: "Service {{ $labels.service }} error rate is {{ $value | humanizePercentage }}."
+
+      - alert: DiskSpaceRunningLow
+        expr: |
+          (node_filesystem_avail_bytes / node_filesystem_size_bytes) < 0.10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk space running low"
+          description: "Node {{ $labels.instance }} filesystem {{ $labels.mountpoint }} has less than 10% free space."
+
+      - alert: PostgresReplicationLag
+        expr: |
+          pg_replication_lag_seconds > 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Postgres replication lag above 30s"
+          description: "Replication lag on {{ $labels.instance }} is {{ $value }}s."
