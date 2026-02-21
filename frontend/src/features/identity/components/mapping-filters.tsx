@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import type { LinkStatus } from "@/lib/api/types";
+import { useTranslation } from "@/i18n";
 
 export interface FilterValues {
   status: LinkStatus | "all";
@@ -24,10 +25,12 @@ export const defaultFilters: FilterValues = {
 };
 
 export function MappingFilters({ value, onChange, onReset }: MappingFiltersProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex flex-wrap items-end gap-4">
       <div className="space-y-1">
-        <label className="text-xs font-medium text-muted-foreground">Status</label>
+        <label className="text-xs font-medium text-muted-foreground">{t("identity.filterStatus")}</label>
         <Select
           value={value.status}
           onValueChange={(v) => onChange({ ...value, status: v as LinkStatus | "all" })}
@@ -36,19 +39,19 @@ export function MappingFilters({ value, onChange, onReset }: MappingFiltersProps
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="auto">Auto</SelectItem>
-            <SelectItem value="verified">Verified</SelectItem>
-            <SelectItem value="conflict">Conflict</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-            <SelectItem value="split">Split</SelectItem>
+            <SelectItem value="all">{t("identity.filterAll")}</SelectItem>
+            <SelectItem value="auto">{t("status.auto")}</SelectItem>
+            <SelectItem value="verified">{t("status.verified")}</SelectItem>
+            <SelectItem value="conflict">{t("status.conflict")}</SelectItem>
+            <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
+            <SelectItem value="split">{t("status.split")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       <div className="space-y-1 w-48">
         <label className="text-xs font-medium text-muted-foreground">
-          Confidence: {value.minConfidence}% – {value.maxConfidence}%
+          {t("identity.filterConfidence", { min: value.minConfidence, max: value.maxConfidence })}
         </label>
         <Slider
           min={0}
@@ -64,7 +67,7 @@ export function MappingFilters({ value, onChange, onReset }: MappingFiltersProps
       </div>
 
       <Button variant="ghost" size="sm" onClick={onReset}>
-        Reset
+        {t("identity.filterReset")}
       </Button>
     </div>
   );

@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { StatusBadge, ConfidenceBadge } from "./status-badge";
 import type { PersonIdentityLink } from "@/lib/api/types";
+import { useTranslation, formatDateTime } from "@/i18n";
 
 interface RuleTraceDrawerProps {
   link: PersonIdentityLink | null;
@@ -26,6 +27,8 @@ export function RuleTraceDrawer({
   onRemap,
   isPending,
 }: RuleTraceDrawerProps) {
+  const { t, locale } = useTranslation();
+
   if (!link) return null;
 
   const trace = link.rule_trace;
@@ -35,15 +38,15 @@ export function RuleTraceDrawer({
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Mapping Details</SheetTitle>
+          <SheetTitle>{t("identity.drawerTitle")}</SheetTitle>
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
           {/* Person */}
           <section>
-            <h3 className="text-sm font-medium text-muted-foreground mb-2">Person</h3>
+            <h3 className="text-sm font-medium text-muted-foreground mb-2">{t("identity.person")}</h3>
             <div className="space-y-1">
-              <p className="font-medium">{link.person?.display_name ?? "Unknown"}</p>
+              <p className="font-medium">{link.person?.display_name ?? t("identity.unknown")}</p>
               <p className="text-sm text-muted-foreground">{link.person?.primary_email ?? "—"}</p>
               {link.person?.team && (
                 <Badge variant="outline">{link.person.team}</Badge>
@@ -55,16 +58,16 @@ export function RuleTraceDrawer({
 
           {/* Identity */}
           <section>
-            <h3 className="text-sm font-medium text-muted-foreground mb-2">Identity</h3>
+            <h3 className="text-sm font-medium text-muted-foreground mb-2">{t("identity.identity")}</h3>
             <div className="space-y-1">
               <p className="font-medium">
-                {link.identity?.display_name ?? link.identity?.username ?? "Unknown"}
+                {link.identity?.display_name ?? link.identity?.username ?? t("identity.unknown")}
               </p>
               <p className="text-sm text-muted-foreground">{link.identity?.email ?? "—"}</p>
               <div className="flex gap-2">
                 <Badge variant="outline">{link.identity?.source ?? "?"}</Badge>
                 {link.identity?.is_service_account && (
-                  <Badge variant="destructive">Service Account</Badge>
+                  <Badge variant="destructive">{t("identity.serviceAccount")}</Badge>
                 )}
               </div>
             </div>
@@ -86,7 +89,7 @@ export function RuleTraceDrawer({
           {/* Rule trace */}
           {trace && (
             <section>
-              <h3 className="text-sm font-medium text-muted-foreground mb-2">Match Rationale</h3>
+              <h3 className="text-sm font-medium text-muted-foreground mb-2">{t("identity.matchRationale")}</h3>
               <div className="space-y-2">
                 {trace.scorers.map((s) => (
                   <div key={s.rule} className="flex items-center justify-between text-sm">
@@ -103,7 +106,7 @@ export function RuleTraceDrawer({
                 ))}
                 <Separator />
                 <div className="flex items-center justify-between text-sm font-medium">
-                  <span>Total confidence</span>
+                  <span>{t("identity.totalConfidence")}</span>
                   <span>{(trace.confidence * 100).toFixed(1)}%</span>
                 </div>
               </div>
@@ -114,10 +117,10 @@ export function RuleTraceDrawer({
 
           {/* Audit info */}
           <section>
-            <h3 className="text-sm font-medium text-muted-foreground mb-2">Audit</h3>
+            <h3 className="text-sm font-medium text-muted-foreground mb-2">{t("identity.audit")}</h3>
             <div className="text-sm space-y-1">
-              <p>Created: {new Date(link.created_at).toLocaleString()}</p>
-              <p>Updated: {new Date(link.updated_at).toLocaleString()}</p>
+              <p>{t("identity.created", { date: formatDateTime(link.created_at, locale) })}</p>
+              <p>{t("identity.updated", { date: formatDateTime(link.updated_at, locale) })}</p>
             </div>
           </section>
 
@@ -127,13 +130,13 @@ export function RuleTraceDrawer({
               <Separator />
               <div className="flex gap-2">
                 <Button size="sm" onClick={() => onConfirm(link.id)} disabled={isPending}>
-                  Confirm
+                  {t("identity.confirm")}
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => onRemap(link.id)} disabled={isPending}>
-                  Remap
+                  {t("identity.remap")}
                 </Button>
                 <Button size="sm" variant="destructive" onClick={() => onSplit(link.id)} disabled={isPending}>
-                  Split
+                  {t("identity.split")}
                 </Button>
               </div>
             </>

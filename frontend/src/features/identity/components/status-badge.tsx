@@ -1,17 +1,22 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
 import type { LinkStatus } from "@/lib/api/types";
+import { useTranslation } from "@/i18n";
+import type { MessageKey } from "@/i18n";
 
-const statusConfig: Record<LinkStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  auto: { label: "Auto", variant: "secondary" },
-  verified: { label: "Verified", variant: "default" },
-  conflict: { label: "Conflict", variant: "destructive" },
-  rejected: { label: "Rejected", variant: "outline" },
-  split: { label: "Split", variant: "outline" },
+const statusConfig: Record<LinkStatus, { labelKey: MessageKey; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  auto: { labelKey: "status.auto", variant: "secondary" },
+  verified: { labelKey: "status.verified", variant: "default" },
+  conflict: { labelKey: "status.conflict", variant: "destructive" },
+  rejected: { labelKey: "status.rejected", variant: "outline" },
+  split: { labelKey: "status.split", variant: "outline" },
 };
 
 export function StatusBadge({ status }: { status: LinkStatus }) {
-  const config = statusConfig[status] ?? { label: status, variant: "outline" as const };
-  return <Badge variant={config.variant}>{config.label}</Badge>;
+  const { t } = useTranslation();
+  const config = statusConfig[status] ?? { labelKey: status as MessageKey, variant: "outline" as const };
+  return <Badge variant={config.variant}>{t(config.labelKey)}</Badge>;
 }
 
 export function ConfidenceBadge({ confidence }: { confidence: number }) {

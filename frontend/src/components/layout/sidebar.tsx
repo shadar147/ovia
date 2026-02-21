@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
+import type { MessageKey } from "@/i18n";
 import {
   LayoutDashboard,
   Users,
@@ -10,18 +12,20 @@ import {
   FileText,
   Settings,
   GitBranch,
+  type LucideIcon,
 } from "lucide-react";
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/team/identity", label: "Identity Mapping", icon: Users },
-  { href: "/ask", label: "Ask Ovia", icon: MessageSquare },
-  { href: "/reports", label: "Reports", icon: FileText },
-  { href: "/settings", label: "Settings", icon: Settings },
+const navItems: { href: string; labelKey: MessageKey; icon: LucideIcon }[] = [
+  { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
+  { href: "/team/identity", labelKey: "nav.identityMapping", icon: Users },
+  { href: "/ask", labelKey: "nav.askOvia", icon: MessageSquare },
+  { href: "/reports", labelKey: "nav.reports", icon: FileText },
+  { href: "/settings", labelKey: "nav.settings", icon: Settings },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { t } = useTranslation();
 
   return (
     <aside className="hidden md:flex w-60 flex-col border-r bg-sidebar text-sidebar-foreground">
@@ -45,7 +49,7 @@ export function Sidebar() {
               )}
             >
               <item.icon className="h-4 w-4" />
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           );
         })}

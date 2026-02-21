@@ -18,6 +18,7 @@ import type { PersonIdentityLink, IdentityMappingFilter } from "@/lib/api/types"
 import { Download } from "lucide-react";
 import { identityApi } from "@/features/identity/api/client";
 import { toast } from "sonner";
+import { useTranslation } from "@/i18n";
 
 function buildApiFilter(f: FilterValues): IdentityMappingFilter {
   return {
@@ -32,6 +33,7 @@ export default function IdentityMappingPage() {
   const [filters, setFilters] = useState<FilterValues>(defaultFilters);
   const [selectedLink, setSelectedLink] = useState<PersonIdentityLink | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { t } = useTranslation();
 
   const apiFilter = buildApiFilter(filters);
   const { data, isLoading, isError, error, refetch } = useIdentityMappings(apiFilter);
@@ -62,19 +64,18 @@ export default function IdentityMappingPage() {
   );
 
   const handleRemap = useCallback((_linkId: string) => {
-    // TODO: open remap modal with person selector
-    toast.info("Remap modal coming soon");
-  }, []);
+    toast.info(t("identity.remapSoon"));
+  }, [t]);
 
   const handleBulkConfirm = useCallback(() => {
     if (!data) return;
     const autoLinks = data.filter((l) => l.status === "auto").map((l) => l.id);
     if (autoLinks.length === 0) {
-      toast.info("No auto-matched links to confirm");
+      toast.info(t("identity.noAutoLinks"));
       return;
     }
     bulkConfirmMutation.mutate({ linkIds: autoLinks, verifiedBy: "admin" });
-  }, [data, bulkConfirmMutation]);
+  }, [data, bulkConfirmMutation, t]);
 
   const handleExportCsv = useCallback(async () => {
     try {
@@ -87,9 +88,9 @@ export default function IdentityMappingPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      toast.error("Failed to export CSV");
+      toast.error(t("identity.exportFailed"));
     }
-  }, []);
+  }, [t]);
 
   const isPending = confirmMutation.isPending || splitMutation.isPending;
   const autoCount = data?.filter((l) => l.status === "auto").length ?? 0;
@@ -98,9 +99,9 @@ export default function IdentityMappingPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Identity Mapping</h1>
+          <h1 className="text-2xl font-semibold">{t("identity.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Match identities across Jira, GitLab, and Confluence to canonical people.
+            {t("identity.subtitle")}
           </p>
         </div>
         <div className="flex gap-2">
@@ -111,12 +112,12 @@ export default function IdentityMappingPage() {
               onClick={handleBulkConfirm}
               disabled={bulkConfirmMutation.isPending}
             >
-              Bulk Confirm ({autoCount})
+              {t("identity.bulkConfirm", { count: autoCount })}
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={handleExportCsv}>
             <Download className="mr-1 h-4 w-4" />
-            Export CSV
+            {t("identity.exportCsv")}
           </Button>
         </div>
       </div>
@@ -131,13 +132,13 @@ export default function IdentityMappingPage() {
         <LoadingState rows={8} />
       ) : isError ? (
         <ErrorState
-          message={error instanceof Error ? error.message : "Failed to load mappings"}
+          message={error instanceof Error ? error.message : t("identity.failedToLoad")}
           onRetry={() => refetch()}
         />
       ) : !data || data.length === 0 ? (
         <EmptyState
-          title="No mappings"
-          description="Run a sync first to populate identity mappings."
+          title={t("identity.noMappings")}
+          description={t("identity.noMappingsDesc")}
         />
       ) : (
         <MappingTable data={data} onRowClick={handleRowClick} />
