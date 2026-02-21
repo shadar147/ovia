@@ -28,7 +28,16 @@ All passed locally.
 - Added integration-style repo test (runs when `TEST_DATABASE_URL` is set).
 
 
+## What changed (this slice)
+- Implemented mutation transactions in `backend/crates/db/src/identity/pg_repository.rs`:
+  - `confirm_mapping`
+  - `remap_mapping`
+  - `split_mapping`
+- Added audit event persistence (`identity_events`) via shared `append_event` helper.
+- Added `NotFound` guards when target active link is missing.
+- Added `serde_json` dependency to `ovia-db` for structured event payloads.
+
 ## Next microtasks
-1. Implement `confirm_mapping` transaction + audit event write.
-2. Implement `remap_mapping` transaction path.
-3. Implement `split_mapping` transaction path.
+1. Add integration tests for `confirm/remap/split` mutation paths with fixture setup.
+2. Add event payload assertions for remap flow.
+3. Mark OVIA-1002 done after mutation tests are in place.
