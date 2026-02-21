@@ -6,6 +6,8 @@ Minimums:
 - New modules require tests.
 - Bug fixes require regression tests.
 - Critical paths require integration tests.
+- Every API endpoint requires at least one happy-path and one error-path test.
+- Complex business logic (scoring, matching, state transitions) requires deterministic unit tests covering edge cases.
 
 Suggested thresholds (initial):
 - Line coverage >= 80%

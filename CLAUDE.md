@@ -15,3 +15,4 @@ Execution flow for every task:
 - Implement.
 - Run lint/tests.
 - Self-review against DoD checklist.
+- Update task status in `docs/13-delivery-backlog.md` and check off completed microtasks in `docs/14-microtasks-5-10min.md`.

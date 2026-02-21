@@ -2,6 +2,8 @@
 
 Goal: enforce consistent merge quality.
 
+Mandatory: after completing implementation, launch a Task sub-agent (subagent_type=general-purpose) to perform an independent review against the checklist below. Do not self-review only — the sub-agent acts as a second pair of eyes.
+
 Review checklist:
 - Architecture fit: yes/no
 - Data model correctness: yes/no
