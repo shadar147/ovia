@@ -1,8 +1,9 @@
 use std::time::Duration;
 
 use reqwest::{Client, StatusCode};
+use serde::de::DeserializeOwned;
 
-use super::models::JiraUser;
+use super::models::{JiraChangelogResponse, JiraIssue, JiraSearchResponse, JiraUser};
 
 #[derive(Debug, Clone)]
 pub struct JiraClientConfig {
@@ -118,6 +119,10 @@ impl JiraClient {
         self
     }
 
+    pub fn config(&self) -> &JiraClientConfig {
+        &self.config
+    }
+
     /// Fetch all users via paginated API, retrying transient errors.
     pub async fn fetch_all_users(&self) -> Result<Vec<JiraUser>, JiraClientError> {
         let max_results = 50;
@@ -143,7 +148,68 @@ impl JiraClient {
         Ok(all_users)
     }
 
-    async fn request_with_retry(&self, url: &str) -> Result<Vec<JiraUser>, JiraClientError> {
+    /// Fetch issues via JQL search, returning all pages.
+    pub async fn search_issues(&self, jql: &str) -> Result<Vec<JiraIssue>, JiraClientError> {
+        let max_results = 50;
+        let mut start_at: usize = 0;
+        let mut all_issues = Vec::new();
+        let fields = "summary,status,issuetype,assignee,reporter,priority,labels,created,updated,resolutiondate,customfield_10016,customfield_10020,customfield_10001";
+
+        loop {
+            let url = format!(
+                "{}/rest/api/3/search?jql={}&startAt={}&maxResults={}&fields={}",
+                self.config.base_url,
+                urlencoding::encode(jql),
+                start_at,
+                max_results,
+                fields,
+            );
+
+            let response: JiraSearchResponse = self.request_with_retry(&url).await?;
+            let page_len = response.issues.len();
+            all_issues.extend(response.issues);
+
+            if start_at + page_len >= response.total || page_len == 0 {
+                break;
+            }
+            start_at += page_len;
+        }
+
+        Ok(all_issues)
+    }
+
+    /// Fetch the full changelog for a single issue.
+    pub async fn fetch_issue_changelog(
+        &self,
+        issue_key: &str,
+    ) -> Result<Vec<super::models::JiraChangelogEntry>, JiraClientError> {
+        let max_results = 100;
+        let mut start_at: usize = 0;
+        let mut all_entries = Vec::new();
+
+        loop {
+            let url = format!(
+                "{}/rest/api/3/issue/{}/changelog?startAt={}&maxResults={}",
+                self.config.base_url, issue_key, start_at, max_results,
+            );
+
+            let response: JiraChangelogResponse = self.request_with_retry(&url).await?;
+            let page_len = response.values.len();
+            all_entries.extend(response.values);
+
+            if response.is_last || page_len == 0 {
+                break;
+            }
+            start_at += page_len;
+        }
+
+        Ok(all_entries)
+    }
+
+    async fn request_with_retry<T: DeserializeOwned>(
+        &self,
+        url: &str,
+    ) -> Result<T, JiraClientError> {
         let mut last_error = String::new();
 
         for attempt in 0..=self.config.max_retries {
@@ -174,7 +240,7 @@ impl JiraClient {
 
             if status.is_success() {
                 return response
-                    .json::<Vec<JiraUser>>()
+                    .json::<T>()
                     .await
                     .map_err(JiraClientError::RequestError);
             }

@@ -13,6 +13,7 @@ use crate::gitlab::client::{GitLabClient, GitLabClientConfig};
 use crate::gitlab::mr_sync::GitLabMrPipelineSyncer;
 use crate::gitlab::sync::GitLabSyncer;
 use crate::jira::client::{JiraClient, JiraClientConfig};
+use crate::jira::issue_sync::JiraIssueSyncer;
 use crate::jira::sync::JiraSyncer;
 
 #[tokio::main]
@@ -61,6 +62,34 @@ async fn main() {
                 }
                 Err(e) => {
                     tracing::error!(error = %e, "jira sync failed");
+                }
+            }
+
+            // Jira Issue sync (separate watermark: "jira_issues")
+            tracing::info!("starting jira issue sync");
+
+            let issue_client =
+                JiraClient::new(JiraClientConfig::from_env().unwrap().unwrap())
+                    .expect("jira client for issue sync");
+            let jira_repo =
+                ovia_db::jira::pg_repository::PgJiraRepository::new(pool.clone());
+            let issue_sync_repo =
+                ovia_db::sync::pg_repository::PgSyncRepository::new(pool.clone());
+
+            let issue_syncer =
+                JiraIssueSyncer::new(org_id, issue_client, jira_repo, issue_sync_repo);
+
+            match issue_syncer.sync().await {
+                Ok(result) => {
+                    tracing::info!(
+                        source = result.source,
+                        upserted = result.upserted,
+                        errors = result.errors,
+                        "jira issue sync completed"
+                    );
+                }
+                Err(e) => {
+                    tracing::error!(error = %e, "jira issue sync failed");
                 }
             }
         }

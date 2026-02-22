@@ -1,6 +1,7 @@
 pub mod ask;
 pub mod gitlab;
 pub mod identity;
+pub mod jira;
 pub mod kpi;
 pub mod sync;
 
