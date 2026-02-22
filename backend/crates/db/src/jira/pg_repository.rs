@@ -208,6 +208,32 @@ impl PgJiraRepository {
         Ok(row.get::<i64, _>("cnt"))
     }
 
+    /// Count resolved Jira issues matching any of the given issue types.
+    pub async fn count_resolved_issues_by_types(
+        &self,
+        org_id: Uuid,
+        from: NaiveDate,
+        to: NaiveDate,
+        issue_types: &[&str],
+    ) -> OviaResult<i64> {
+        let types_vec: Vec<String> = issue_types.iter().map(|s| s.to_string()).collect();
+        let row = sqlx::query(
+            "select count(*) as cnt from jira_issues
+             where org_id = $1
+               and resolved_at >= $2::date
+               and resolved_at < $3::date
+               and issue_type = any($4)",
+        )
+        .bind(org_id)
+        .bind(from)
+        .bind(to)
+        .bind(&types_vec)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| OviaError::Database(e.to_string()))?;
+        Ok(row.get::<i64, _>("cnt"))
+    }
+
     /// Count resolved Jira issues by issue_type in the given period.
     pub async fn count_resolved_issues_by_type(
         &self,

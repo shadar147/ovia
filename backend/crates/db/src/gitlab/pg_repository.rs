@@ -128,6 +128,31 @@ impl PgGitlabRepository {
         Ok(count)
     }
 
+    /// Count merged MRs that contain any of the given labels.
+    pub async fn count_merged_mrs_by_labels(
+        &self,
+        org_id: Uuid,
+        from: NaiveDate,
+        to: NaiveDate,
+        labels: &[&str],
+    ) -> OviaResult<i64> {
+        let labels_vec: Vec<String> = labels.iter().map(|s| s.to_string()).collect();
+        let count: i64 = sqlx::query_scalar(
+            "select count(*) from gitlab_merge_requests
+             where org_id = $1 and state = 'merged'
+               and merged_at >= $2::date and merged_at < ($3::date + interval '1 day')
+               and labels && $4",
+        )
+        .bind(org_id)
+        .bind(from)
+        .bind(to)
+        .bind(&labels_vec)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| OviaError::Database(e.to_string()))?;
+        Ok(count)
+    }
+
     /// Count merged MRs that contain a given label.
     pub async fn count_merged_mrs_by_label(
         &self,

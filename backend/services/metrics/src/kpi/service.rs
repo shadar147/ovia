@@ -8,6 +8,7 @@ use ovia_db::jira::pg_repository::PgJiraRepository;
 use ovia_db::kpi::models::{KpiSnapshot, RiskItem};
 use ovia_db::kpi::repositories::KpiRepository;
 
+use super::classify::{BUG_ISSUE_TYPES, BUG_LABELS, FEATURE_ISSUE_TYPES, FEATURE_LABELS};
 use super::compute::{compute_delivery_health, compute_release_risk};
 
 pub struct KpiService<R: KpiRepository> {
@@ -22,13 +23,13 @@ impl<R: KpiRepository> KpiService<R> {
 
     /// Compute and save a KPI snapshot for the given org and period.
     ///
-    /// Metrics are derived from real GitLab merge request and pipeline data:
-    /// - throughput_total: count of merged MRs in period
-    /// - throughput_bugs: merged MRs with 'bug' label
-    /// - throughput_features: merged MRs with 'feature' label
-    /// - throughput_chores: total - bugs - features
-    /// - review_latency_median/p90: from merged_at - created_at_gl durations
-    /// - delivery_health_score + release_risk_score from compute functions
+    /// Throughput classification priority:
+    ///   1. Jira issue_type mapping (Bug, Defect → bug; Story, Epic, … → feature)
+    ///   2. GitLab label fallback (bug/defect/fix/hotfix → bug; feature/enhancement/story → feature)
+    ///   3. Unmatched → chore
+    ///
+    /// Extend `classify::BUG_ISSUE_TYPES`, `FEATURE_ISSUE_TYPES`, `BUG_LABELS`,
+    /// `FEATURE_LABELS` to add new mappings.
     ///
     /// Risk items are generated from stale open MRs (>7 days) and failed pipelines.
     pub async fn compute_and_save(
@@ -40,36 +41,36 @@ impl<R: KpiRepository> KpiService<R> {
         let gl_repo = PgGitlabRepository::new(self.pool.clone());
         let jira_repo = PgJiraRepository::new(self.pool.clone());
 
-        // ── GitLab throughput ─────────────────────────────────────────
+        // ── GitLab throughput (label-based classification) ─────────────
         let mr_total = gl_repo
             .count_merged_mrs(org_id, period_start, period_end)
             .await? as i32;
 
         let mr_bugs = gl_repo
-            .count_merged_mrs_by_label(org_id, period_start, period_end, "bug")
+            .count_merged_mrs_by_labels(org_id, period_start, period_end, BUG_LABELS)
             .await? as i32;
 
         let mr_features = gl_repo
-            .count_merged_mrs_by_label(org_id, period_start, period_end, "feature")
+            .count_merged_mrs_by_labels(org_id, period_start, period_end, FEATURE_LABELS)
             .await? as i32;
 
-        // ── Jira throughput (resolved issues by type) ─────────────────
+        // ── Jira throughput (issue-type-based classification) ──────────
         let jira_bugs = jira_repo
-            .count_resolved_issues_by_type(org_id, period_start, period_end, "Bug")
+            .count_resolved_issues_by_types(org_id, period_start, period_end, BUG_ISSUE_TYPES)
             .await? as i32;
 
-        let jira_stories = jira_repo
-            .count_resolved_issues_by_type(org_id, period_start, period_end, "Story")
+        let jira_features = jira_repo
+            .count_resolved_issues_by_types(org_id, period_start, period_end, FEATURE_ISSUE_TYPES)
             .await? as i32;
 
         let jira_resolved_total = jira_repo
             .count_resolved_issues(org_id, period_start, period_end)
             .await? as i32;
 
-        // Combine MR + Jira throughput (MR labels are usually empty → all chores,
-        // so Jira provides the primary bug/feature breakdown)
+        // Combine MR + Jira throughput
+        // Jira issue_type is the primary classifier; GitLab labels are fallback
         let throughput_bugs = mr_bugs + jira_bugs;
-        let throughput_features = mr_features + jira_stories;
+        let throughput_features = mr_features + jira_features;
         let throughput_total = mr_total + jira_resolved_total;
         let throughput_chores = (throughput_total - throughput_bugs - throughput_features).max(0);
 
