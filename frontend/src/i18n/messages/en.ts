@@ -26,6 +26,10 @@ export const messages = {
   "dashboard.topRisksDesc": "Active blockers, stale PRs, and failing pipelines from the latest snapshot. Risk score = 40% blocker age + 30% failing pipelines + 30% stale MR %",
   "dashboard.throughputMix": "Throughput Mix",
   "dashboard.throughputMixDesc": "Current week breakdown by work item type",
+  "dashboard.noHistory": "Not enough history data yet",
+  "dashboard.noHistoryDesc": "Charts will appear after at least one completed period.",
+  "dashboard.noThroughput": "No items delivered this period",
+  "dashboard.noThroughputDesc": "The breakdown chart will populate once items are completed.",
 
   // ── KPI cards ──
   "kpi.deliveryHealth": "Delivery Health",

@@ -32,4 +32,14 @@ describe("HealthScoreBadge", () => {
     render(<HealthScoreBadge score={null} />);
     expect(screen.getByText("N/A")).toBeInTheDocument();
   });
+
+  it("renders Critical for score 0", () => {
+    render(<HealthScoreBadge score={0} />);
+    expect(screen.getByText("Critical")).toBeInTheDocument();
+  });
+
+  it("renders Healthy for score 100", () => {
+    render(<HealthScoreBadge score={100} />);
+    expect(screen.getByText("Healthy")).toBeInTheDocument();
+  });
 });

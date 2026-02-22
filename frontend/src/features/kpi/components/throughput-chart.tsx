@@ -19,6 +19,17 @@ interface ThroughputChartProps {
 export function ThroughputChart({ history }: ThroughputChartProps) {
   const { t, locale } = useTranslation();
 
+  if (history.length === 0) {
+    return (
+      <div className="flex h-[300px] items-center justify-center text-center">
+        <div>
+          <p className="text-sm font-medium text-muted-foreground">{t("dashboard.noHistory")}</p>
+          <p className="mt-1 text-xs text-muted-foreground/70">{t("dashboard.noHistoryDesc")}</p>
+        </div>
+      </div>
+    );
+  }
+
   const sorted = [...history].sort(
     (a, b) => new Date(a.period_start).getTime() - new Date(b.period_start).getTime(),
   );

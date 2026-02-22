@@ -60,4 +60,34 @@ describe("RiskTable", () => {
     expect(screen.getByText("Pull Request")).toBeInTheDocument();
     expect(screen.getByText("Issue")).toBeInTheDocument();
   });
+
+  it("renders pipeline entity type", () => {
+    const pipeline = { ...mockRisk, id: "r3", entity_type: "pipeline", title: "Build failed" };
+    render(<RiskTable risks={[pipeline]} />);
+    expect(screen.getByText("Pipeline")).toBeInTheDocument();
+  });
+
+  it("handles unknown entity type gracefully", () => {
+    const unknown = { ...mockRisk, id: "r4", entity_type: "deployment", title: "Deploy issue" };
+    render(<RiskTable risks={[unknown]} />);
+    expect(screen.getByText("Deployment")).toBeInTheDocument();
+  });
+
+  it("renders zero age days", () => {
+    const fresh = { ...mockRisk, age_days: 0 };
+    render(<RiskTable risks={[fresh]} />);
+    expect(screen.getByText("0d")).toBeInTheDocument();
+  });
+
+  it("renders high age with red styling", () => {
+    const old = { ...mockRisk, age_days: 30 };
+    render(<RiskTable risks={[old]} />);
+    expect(screen.getByText("30d")).toBeInTheDocument();
+  });
+
+  it("handles status with underscores", () => {
+    const underscoreStatus = { ...mockRisk, status: "in_review" };
+    render(<RiskTable risks={[underscoreStatus]} />);
+    expect(screen.getByText("in review")).toBeInTheDocument();
+  });
 });

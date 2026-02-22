@@ -19,6 +19,17 @@ interface HealthTrendChartProps {
 export function HealthTrendChart({ history }: HealthTrendChartProps) {
   const { t, locale } = useTranslation();
 
+  if (history.length === 0) {
+    return (
+      <div className="flex h-[280px] items-center justify-center text-center">
+        <div>
+          <p className="text-sm font-medium text-muted-foreground">{t("dashboard.noHistory")}</p>
+          <p className="mt-1 text-xs text-muted-foreground/70">{t("dashboard.noHistoryDesc")}</p>
+        </div>
+      </div>
+    );
+  }
+
   const sorted = [...history].sort(
     (a, b) => new Date(a.period_start).getTime() - new Date(b.period_start).getTime(),
   );
@@ -26,7 +37,7 @@ export function HealthTrendChart({ history }: HealthTrendChartProps) {
   const option: echarts.EChartsCoreOption = {
     tooltip: {
       trigger: "axis",
-      valueFormatter: (val: number) => `${val}`,
+      valueFormatter: (val: number | null) => val != null ? `${val}` : "N/A",
     },
     grid: { left: 40, right: 16, top: 16, bottom: 24 },
     xAxis: {

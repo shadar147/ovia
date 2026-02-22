@@ -28,6 +28,10 @@ export const messages: Messages = {
   "dashboard.topRisksDesc": "Активные блокеры, устаревшие PR и сбойные пайплайны. Оценка риска = 40% возраст блокера + 30% сбойные пайплайны + 30% устаревшие MR",
   "dashboard.throughputMix": "Структура пропускной способности",
   "dashboard.throughputMixDesc": "Распределение задач текущей недели по типам",
+  "dashboard.noHistory": "Недостаточно исторических данных",
+  "dashboard.noHistoryDesc": "Графики появятся после завершения хотя бы одного периода.",
+  "dashboard.noThroughput": "За этот период задачи не выполнены",
+  "dashboard.noThroughputDesc": "График распределения заполнится после выполнения задач.",
 
   // ── KPI карточки ──
   "kpi.deliveryHealth": "Здоровье поставки",

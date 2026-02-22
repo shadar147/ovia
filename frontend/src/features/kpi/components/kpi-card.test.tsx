@@ -30,4 +30,15 @@ describe("KpiCard", () => {
     render(<KpiCard title="Throughput" value="48" delta={null} icon={Zap} />);
     expect(screen.queryByText("vs prev week")).not.toBeInTheDocument();
   });
+
+  it("renders zero delta with neutral indicator", () => {
+    render(<KpiCard title="Throughput" value="48" delta={0} deltaLabel="items" icon={Zap} />);
+    expect(screen.getByText("0.0 items")).toBeInTheDocument();
+    expect(screen.getByText("vs prev week")).toBeInTheDocument();
+  });
+
+  it("renders N/A value correctly", () => {
+    render(<KpiCard title="Latency" value="N/A" icon={Zap} />);
+    expect(screen.getByText("N/A")).toBeInTheDocument();
+  });
 });

@@ -18,6 +18,17 @@ interface ThroughputBreakdownProps {
 export function ThroughputBreakdown({ snapshot }: ThroughputBreakdownProps) {
   const { t } = useTranslation();
 
+  if (snapshot.throughput_total === 0) {
+    return (
+      <div className="flex h-[300px] items-center justify-center text-center">
+        <div>
+          <p className="text-sm font-medium text-muted-foreground">{t("dashboard.noThroughput")}</p>
+          <p className="mt-1 text-xs text-muted-foreground/70">{t("dashboard.noThroughputDesc")}</p>
+        </div>
+      </div>
+    );
+  }
+
   const option: echarts.EChartsCoreOption = {
     tooltip: {
       trigger: "item",
