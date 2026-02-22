@@ -254,6 +254,68 @@ Status legend: `todo | in_progress | review | done | blocked`
   - Syncer: lock-skip, model deserialization.
   - KPI: percentile median, p90, empty, single value.
 
+### OVIA-3009 Jira Dashboard KPI Exposure + Risk Pagination (Block A)
+- Status: `done`
+- Priority: P1
+- Owner: Claude
+- Depends on: OVIA-3008
+- Description:
+  - Expose `blocker_count`, `spillover_rate`, `cycle_time_p50_hours`, `cycle_time_p90_hours` in frontend `KpiSnapshot` type.
+  - Add 3 new KPI cards to dashboard: Blockers, Spillover Rate, Cycle Time.
+  - Add client-side pagination (20/page) to RiskTable with prev/next navigation.
+  - Update i18n messages (en + ru) for new cards and pagination controls.
+  - Update all chart test fixtures with new Jira KPI fields.
+- Acceptance:
+  - New KPI cards render with correct data.
+  - Risk table paginates at 20 rows with boundary handling.
+  - 3 new pagination tests + updated fixture tests pass.
+
+### OVIA-3010 Extensible Throughput Classification (Block B)
+- Status: `done`
+- Priority: P1
+- Owner: Claude
+- Depends on: OVIA-3008
+- Description:
+  - New `classify.rs` module with configurable bug/feature/chore mapping strategy.
+  - Jira issue type mapping: Bug/Defect → bug; Story/Epic/New Feature/Improvement → feature.
+  - GitLab label fallback: bug/defect/fix/hotfix → bug; feature/enhancement/story → feature.
+  - Unmatched → chore.
+  - `count_resolved_issues_by_types` (multi-type) added to `PgJiraRepository`.
+  - `count_merged_mrs_by_labels` (multi-label) added to `PgGitlabRepository`.
+  - KPI service updated to use expanded mappings for throughput breakdown.
+- Acceptance:
+  - Classification invariant tests pass (no overlap between bug/feature sets, non-empty sets).
+  - All existing tests pass.
+
+### OVIA-3011 Jira Identities Ingest from Issues (Block C)
+- Status: `done`
+- Priority: P1
+- Owner: Claude
+- Depends on: OVIA-3006
+- Description:
+  - Enrich `JiraIssueSyncer` to collect unique user refs (assignee + reporter) from synced issues.
+  - Upsert collected users as identities (`source=jira`).
+  - Dedup by `accountId`, null-safe for missing fields, marks app accounts as service accounts.
+  - Passes `IdentityRepository` + `OrgId` into issue syncer for identity upsert.
+- Acceptance:
+  - 5 new unit tests, 95 total ingest tests pass.
+  - `cargo fmt --check` and `cargo clippy -D warnings` clean.
+- Tests:
+  - `extracts_assignee_and_reporter_identities`
+  - `deduplicates_identities_by_account_id`
+  - `skips_null_assignee_reporter`
+  - `marks_app_accounts_as_service_accounts`
+  - `handles_missing_display_name`
+
+### OVIA-CI-001 Clippy doc-comment lint fix
+- Status: `done`
+- Priority: P0
+- Owner: Claude
+- Description:
+  - Fix `empty-line-after-doc-comments` clippy lint in `classify.rs` (commit `d5ab246`).
+- Acceptance:
+  - `cargo clippy -D warnings` clean.
+
 ## Epic 4 — Analytics + Ask Ovia
 
 ### OVIA-4001 KPI query service

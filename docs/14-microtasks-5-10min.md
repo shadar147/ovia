@@ -3,31 +3,31 @@
 Rule: each task should be completable in one focused sprint (<=10 min), with a clear output artifact.
 
 ## OVIA-0002 CI quality gates (decomposed)
-- [ ] MT-0002-01 Create `.github/workflows/ci.yml` skeleton with trigger on push/PR.
-- [ ] MT-0002-02 Add rust toolchain setup step.
-- [ ] MT-0002-03 Add `cargo fmt --all --check` step.
-- [ ] MT-0002-04 Add `cargo clippy --all-targets --all-features -- -D warnings` step.
-- [ ] MT-0002-05 Add `cargo test --all` step.
-- [ ] MT-0002-06 Add artifact upload for test logs.
-- [ ] MT-0002-07 Add README badge/link to CI status.
-- [ ] MT-0002-08 Validate workflow syntax locally with `act`-compatible lint (or `yamllint` if available).
-- [ ] MT-0002-09 Create `docs/.planning/WO-0002-review.md` template.
+- [x] MT-0002-01 Create `.github/workflows/ci.yml` skeleton with trigger on push/PR.
+- [x] MT-0002-02 Add rust toolchain setup step.
+- [x] MT-0002-03 Add `cargo fmt --all --check` step.
+- [x] MT-0002-04 Add `cargo clippy --all-targets --all-features -- -D warnings` step.
+- [x] MT-0002-05 Add `cargo test --all` step.
+- [x] MT-0002-06 Add artifact upload for test logs.
+- [x] MT-0002-07 Add README badge/link to CI status.
+- [x] MT-0002-08 Validate workflow syntax locally with `act`-compatible lint (or `yamllint` if available).
+- [x] MT-0002-09 Create `docs/.planning/WO-0002-review.md` template.
 
 ## OVIA-1001 SQL migration baseline (decomposed)
-- [ ] MT-1001-01 Add index for `person_identity_links(status, confidence)`.
-- [ ] MT-1001-02 Add index for `identities(org_id, source, email)` where email is not null.
-- [ ] MT-1001-03 Add index for `identities(org_id, source, username)` where username is not null.
-- [ ] MT-1001-04 Add comments on `status` semantics in SQL.
-- [ ] MT-1001-05 Add query example for conflict queue in docs.
-- [ ] MT-1001-06 Add migration apply check instructions in docs.
+- [x] MT-1001-01 Add index for `person_identity_links(status, confidence)`.
+- [x] MT-1001-02 Add index for `identities(org_id, source, email)` where email is not null.
+- [x] MT-1001-03 Add index for `identities(org_id, source, username)` where username is not null.
+- [x] MT-1001-04 Add comments on `status` semantics in SQL.
+- [x] MT-1001-05 Add query example for conflict queue in docs.
+- [x] MT-1001-06 Add migration apply check instructions in docs.
 
 ## OVIA-1002 Identity repository layer (decomposed)
-- [ ] MT-1002-01 Define repository trait file for `people`.
-- [ ] MT-1002-02 Define repository trait file for `identities`.
-- [ ] MT-1002-03 Define repository trait file for `person_identity_links`.
-- [ ] MT-1002-04 Define repository trait file for `identity_events`.
-- [ ] MT-1002-05 Add DTOs for list/filter requests.
-- [ ] MT-1002-06 Implement `list_mappings` query (read-only).
+- [x] MT-1002-01 Define repository trait file for `people`.
+- [x] MT-1002-02 Define repository trait file for `identities`.
+- [x] MT-1002-03 Define repository trait file for `person_identity_links`.
+- [x] MT-1002-04 Define repository trait file for `identity_events`.
+- [x] MT-1002-05 Add DTOs for list/filter requests.
+- [x] MT-1002-06 Implement `list_mappings` query (read-only).
 - [x] MT-1002-07 Add unit test fixture for mapping list.
 - [x] MT-1002-08 Implement `confirm_mapping` transaction.
 - [x] MT-1002-09 Add integration test for confirm mapping.
@@ -232,6 +232,31 @@ Rule: each task should be completable in one focused sprint (<=10 min), with a c
 - [x] MT-3008-05 Add `kpi_history_includes_jira_metrics` test.
 - [x] MT-3008-06 Verify 203 total tests pass (59 db + 90 ingest + 16 metrics + 34 api + 4 rag).
 - [x] MT-3008-07 Update delivery backlog and microtasks docs.
+
+## OVIA-3009 Dashboard Jira KPI + Risk Pagination — Block A (decomposed)
+- [x] MT-3009-01 Add `blocker_count`, `spillover_rate`, `cycle_time_p50_hours`, `cycle_time_p90_hours` to frontend `KpiSnapshot` type.
+- [x] MT-3009-02 Add 3 new KPI cards (Blockers, Spillover Rate, Cycle Time) to `kpi-cards-row.tsx`.
+- [x] MT-3009-03 Add client-side pagination (20/page) to `risk-table.tsx` with prev/next navigation.
+- [x] MT-3009-04 Update i18n messages (en + ru) for new KPI cards and pagination controls.
+- [x] MT-3009-05 Update all chart test fixtures with new Jira KPI fields.
+- [x] MT-3009-06 Add pagination tests (page size, navigation, boundary).
+
+## OVIA-3010 Extensible Throughput Classification — Block B (decomposed)
+- [x] MT-3010-01 Create `metrics/src/kpi/classify.rs` — bug/feature/chore mapping with Jira type + GitLab label strategy.
+- [x] MT-3010-02 Add `count_resolved_issues_by_types` (multi-type) to `PgJiraRepository`.
+- [x] MT-3010-03 Add `count_merged_mrs_by_labels` (multi-label) to `PgGitlabRepository`.
+- [x] MT-3010-04 Update KPI service to use expanded classification mappings.
+- [x] MT-3010-05 Add classification invariant tests (no overlap, non-empty sets).
+
+## OVIA-3011 Jira Identities Ingest from Issues — Block C (decomposed)
+- [x] MT-3011-01 Enrich `JiraIssueSyncer` to collect unique user refs (assignee + reporter).
+- [x] MT-3011-02 Upsert collected users as identities (`source=jira`) with dedup by `accountId`.
+- [x] MT-3011-03 Handle null-safe fields and mark app accounts as service accounts.
+- [x] MT-3011-04 Pass `IdentityRepository` + `OrgId` into issue syncer for identity upsert.
+- [x] MT-3011-05 Add 5 new unit tests for identity extraction scenarios.
+
+## OVIA-CI-001 Clippy lint fix (decomposed)
+- [x] MT-CI-001-01 Remove empty line after doc-comments in `classify.rs` (commit `d5ab246`).
 
 ## Operating cadence
 - One commit every 1–2 microtasks (max ~10 minutes work).
