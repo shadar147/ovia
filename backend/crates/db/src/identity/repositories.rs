@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::identity::models::{
     BulkConfirmResult, ConflictQueueFilter, ConflictQueueStats, Identity, IdentityEvent,
-    IdentityMappingFilter, Person, PersonIdentityLink,
+    IdentityMappingFilter, Person, PersonFilter, PersonIdentityLink,
 };
 use ovia_common::error::OviaResult;
 
@@ -12,6 +12,9 @@ pub trait PersonRepository: Send + Sync {
     async fn get_by_id(&self, org_id: Uuid, id: Uuid) -> OviaResult<Option<Person>>;
     async fn create(&self, person: Person) -> OviaResult<Person>;
     async fn update(&self, person: Person) -> OviaResult<Person>;
+    async fn list(&self, org_id: Uuid, filter: PersonFilter) -> OviaResult<(Vec<Person>, i64)>;
+    async fn list_by_ids(&self, org_id: Uuid, ids: &[Uuid]) -> OviaResult<Vec<Person>>;
+    async fn soft_delete(&self, org_id: Uuid, id: Uuid) -> OviaResult<()>;
 }
 
 #[async_trait]

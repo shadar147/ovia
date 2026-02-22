@@ -7,9 +7,11 @@ use uuid::Uuid;
 
 use crate::identity::models::{
     BulkConfirmResult, ConflictQueueFilter, ConflictQueueStats, Identity, IdentityMappingFilter,
-    LinkStatus, PersonIdentityLink,
+    LinkStatus, Person, PersonFilter, PersonIdentityLink,
 };
-use crate::identity::repositories::{IdentityRepository, PersonIdentityLinkRepository};
+use crate::identity::repositories::{
+    IdentityRepository, PersonIdentityLinkRepository, PersonRepository,
+};
 use ovia_common::error::{OviaError, OviaResult};
 
 #[derive(Clone)]
@@ -24,6 +26,21 @@ impl PgIdentityRepository {
 
     pub fn pool(&self) -> &PgPool {
         &self.pool
+    }
+
+    fn map_person_row(row: PgRow) -> Person {
+        Person {
+            id: row.get("id"),
+            org_id: row.get("org_id"),
+            display_name: row.get("display_name"),
+            primary_email: row.get("primary_email"),
+            avatar_url: row.get("avatar_url"),
+            team: row.get("team"),
+            role: row.get("role"),
+            status: row.get("status"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        }
     }
 
     fn map_link_row(row: PgRow) -> OviaResult<PersonIdentityLink> {
@@ -69,6 +86,185 @@ impl PgIdentityRepository {
         .await
         .map_err(|e| OviaError::Database(e.to_string()))?;
 
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl PersonRepository for PgIdentityRepository {
+    async fn get_by_id(&self, org_id: Uuid, id: Uuid) -> OviaResult<Option<Person>> {
+        let row = sqlx::query(
+            "select id, org_id, display_name, primary_email, avatar_url, team, role, status,
+                    created_at, updated_at
+             from people where org_id = $1 and id = $2",
+        )
+        .bind(org_id)
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| OviaError::Database(e.to_string()))?;
+
+        match row {
+            Some(r) => Ok(Some(Self::map_person_row(r))),
+            None => Ok(None),
+        }
+    }
+
+    async fn create(&self, person: Person) -> OviaResult<Person> {
+        let row = sqlx::query(
+            "insert into people (id, org_id, display_name, primary_email, avatar_url, team, role, status)
+             values ($1, $2, $3, $4, $5, $6, $7, $8)
+             returning id, org_id, display_name, primary_email, avatar_url, team, role, status,
+                       created_at, updated_at",
+        )
+        .bind(person.id)
+        .bind(person.org_id)
+        .bind(&person.display_name)
+        .bind(&person.primary_email)
+        .bind(&person.avatar_url)
+        .bind(&person.team)
+        .bind(&person.role)
+        .bind(&person.status)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("duplicate key") || msg.contains("unique constraint") {
+                OviaError::Validation(format!(
+                    "person with this email already exists: {}",
+                    person.primary_email.as_deref().unwrap_or("(none)")
+                ))
+            } else {
+                OviaError::Database(msg)
+            }
+        })?;
+
+        Ok(Self::map_person_row(row))
+    }
+
+    async fn update(&self, person: Person) -> OviaResult<Person> {
+        let row = sqlx::query(
+            "update people
+             set display_name = $1, primary_email = $2, avatar_url = $3,
+                 team = $4, role = $5, status = $6, updated_at = now()
+             where id = $7 and org_id = $8
+             returning id, org_id, display_name, primary_email, avatar_url, team, role, status,
+                       created_at, updated_at",
+        )
+        .bind(&person.display_name)
+        .bind(&person.primary_email)
+        .bind(&person.avatar_url)
+        .bind(&person.team)
+        .bind(&person.role)
+        .bind(&person.status)
+        .bind(person.id)
+        .bind(person.org_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| OviaError::Database(e.to_string()))?;
+
+        match row {
+            Some(r) => Ok(Self::map_person_row(r)),
+            None => Err(OviaError::NotFound(format!(
+                "person not found: {}",
+                person.id
+            ))),
+        }
+    }
+
+    async fn list(&self, org_id: Uuid, filter: PersonFilter) -> OviaResult<(Vec<Person>, i64)> {
+        let status_filter = filter.status.as_deref().unwrap_or("active");
+
+        let mut qb = QueryBuilder::new(
+            "select id, org_id, display_name, primary_email, avatar_url, team, role, status, \
+             created_at, updated_at from people where org_id = ",
+        );
+        qb.push_bind(org_id);
+        qb.push(" and status = ").push_bind(status_filter);
+
+        if let Some(ref team) = filter.team {
+            qb.push(" and team = ").push_bind(team);
+        }
+        if let Some(ref search) = filter.search {
+            let pattern = format!("%{search}%");
+            qb.push(" and (display_name ilike ")
+                .push_bind(pattern.clone())
+                .push(" or primary_email ilike ")
+                .push_bind(pattern)
+                .push(")");
+        }
+
+        qb.push(" order by display_name asc");
+        qb.push(" limit ").push_bind(filter.limit.unwrap_or(50));
+        qb.push(" offset ").push_bind(filter.offset.unwrap_or(0));
+
+        let rows = qb
+            .build()
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| OviaError::Database(e.to_string()))?;
+
+        let people: Vec<Person> = rows.into_iter().map(Self::map_person_row).collect();
+
+        // Count query
+        let mut cqb = QueryBuilder::new("select count(*) from people where org_id = ");
+        cqb.push_bind(org_id);
+        cqb.push(" and status = ").push_bind(status_filter);
+
+        if let Some(ref team) = filter.team {
+            cqb.push(" and team = ").push_bind(team);
+        }
+        if let Some(ref search) = filter.search {
+            let pattern = format!("%{search}%");
+            cqb.push(" and (display_name ilike ")
+                .push_bind(pattern.clone())
+                .push(" or primary_email ilike ")
+                .push_bind(pattern)
+                .push(")");
+        }
+
+        let total: i64 = cqb
+            .build()
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| OviaError::Database(e.to_string()))?
+            .get(0);
+
+        Ok((people, total))
+    }
+
+    async fn list_by_ids(&self, org_id: Uuid, ids: &[Uuid]) -> OviaResult<Vec<Person>> {
+        if ids.is_empty() {
+            return Ok(vec![]);
+        }
+        let rows = sqlx::query(
+            "select id, org_id, display_name, primary_email, avatar_url, team, role, status,
+                    created_at, updated_at
+             from people where org_id = $1 and id = any($2)",
+        )
+        .bind(org_id)
+        .bind(ids)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| OviaError::Database(e.to_string()))?;
+
+        Ok(rows.into_iter().map(Self::map_person_row).collect())
+    }
+
+    async fn soft_delete(&self, org_id: Uuid, id: Uuid) -> OviaResult<()> {
+        let result = sqlx::query(
+            "update people set status = 'inactive', updated_at = now()
+             where org_id = $1 and id = $2 and status != 'inactive'",
+        )
+        .bind(org_id)
+        .bind(id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| OviaError::Database(e.to_string()))?;
+
+        if result.rows_affected() == 0 {
+            return Err(OviaError::NotFound(format!("person not found: {id}")));
+        }
         Ok(())
     }
 }

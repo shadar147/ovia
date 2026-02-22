@@ -406,7 +406,7 @@ Status legend: `todo | in_progress | review | done | blocked`
 ## Epic 6 — People Management & Multi-Identity Mapping
 
 ### OVIA-6001 People CRUD API (Backend)
-- Status: `todo`
+- Status: `done`
 - Priority: P0
 - Owner: Claude
 - Depends on: OVIA-1002

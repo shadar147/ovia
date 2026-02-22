@@ -3,6 +3,7 @@ mod error;
 mod extractors;
 mod identity;
 mod kpi;
+mod people;
 
 use axum::{
     http::{header, HeaderValue, Method, StatusCode},
@@ -72,6 +73,7 @@ fn build_router(state: AppState) -> Router {
         .merge(identity::router())
         .merge(kpi::router())
         .merge(ask::router())
+        .merge(people::router())
         .layer(cors)
         .with_state(state)
 }
@@ -108,7 +110,7 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
-    use sqlx::PgPool;
+    use sqlx::{PgPool, Row};
     use tower::ServiceExt;
     use uuid::Uuid;
 
@@ -1166,5 +1168,383 @@ mod tests {
         let body = read_body(resp).await;
         assert_eq!(body["count"], 0);
         assert_eq!(body["data"], serde_json::json!([]));
+    }
+
+    // ── People CRUD endpoint tests ──────────────────────────────────
+
+    async fn ensure_avatar_column(pool: &PgPool) {
+        sqlx::query("alter table people add column if not exists avatar_url text")
+            .execute(pool)
+            .await
+            .expect("add avatar_url column");
+    }
+
+    #[tokio::test]
+    async fn people_list_empty_returns_empty() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let app = build_router(state);
+        let org = Uuid::new_v4();
+        let resp = app
+            .oneshot(
+                Request::get("/team/people")
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = read_body(resp).await;
+        assert_eq!(body["data"], serde_json::json!([]));
+        assert_eq!(body["count"], 0);
+        assert_eq!(body["total"], 0);
+    }
+
+    #[tokio::test]
+    async fn people_create_happy_path() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let app = build_router(state);
+        let org = Uuid::new_v4();
+        let body = serde_json::json!({
+            "display_name": "Alice Smith",
+            "primary_email": "alice@example.com",
+            "team": "Platform",
+            "role": "Engineer"
+        });
+        let resp = app
+            .oneshot(
+                Request::post("/team/people")
+                    .header("X-Org-Id", org.to_string())
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let resp_body = read_body(resp).await;
+        assert_eq!(resp_body["display_name"], "Alice Smith");
+        assert_eq!(resp_body["primary_email"], "alice@example.com");
+        assert_eq!(resp_body["team"], "Platform");
+        assert_eq!(resp_body["role"], "Engineer");
+        assert_eq!(resp_body["status"], "active");
+        assert_eq!(resp_body["identity_count"], 0);
+        assert!(resp_body["id"].as_str().is_some());
+    }
+
+    #[tokio::test]
+    async fn people_create_empty_name_returns_400() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let app = build_router(state);
+        let org = Uuid::new_v4();
+        let body = serde_json::json!({
+            "display_name": "",
+            "primary_email": "bob@example.com"
+        });
+        let resp = app
+            .oneshot(
+                Request::post("/team/people")
+                    .header("X-Org-Id", org.to_string())
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let resp_body = read_body(resp).await;
+        assert!(resp_body["error"]
+            .as_str()
+            .unwrap()
+            .contains("display_name"));
+    }
+
+    #[tokio::test]
+    async fn people_create_invalid_email_returns_400() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let app = build_router(state);
+        let org = Uuid::new_v4();
+        let body = serde_json::json!({
+            "display_name": "Bob",
+            "primary_email": "not-an-email"
+        });
+        let resp = app
+            .oneshot(
+                Request::post("/team/people")
+                    .header("X-Org-Id", org.to_string())
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let resp_body = read_body(resp).await;
+        assert!(resp_body["error"].as_str().unwrap().contains("email"));
+    }
+
+    #[tokio::test]
+    async fn people_get_returns_person_with_identity_count() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let org = Uuid::new_v4();
+        let person_id = insert_person(&pool, org).await;
+        let identity_id = insert_identity(&pool, org).await;
+        insert_link(&pool, org, person_id, identity_id).await;
+
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::get(format!("/team/people/{person_id}"))
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = read_body(resp).await;
+        assert_eq!(body["id"], person_id.to_string());
+        assert_eq!(body["identity_count"], 1);
+    }
+
+    #[tokio::test]
+    async fn people_get_not_found_returns_404() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let app = build_router(state);
+        let org = Uuid::new_v4();
+        let resp = app
+            .oneshot(
+                Request::get(format!("/team/people/{}", Uuid::new_v4()))
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn people_update_happy_path() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let org = Uuid::new_v4();
+        let person_id = insert_person(&pool, org).await;
+
+        let app = build_router(state);
+        let body = serde_json::json!({
+            "display_name": "Updated Name",
+            "team": "Backend"
+        });
+        let resp = app
+            .oneshot(
+                Request::put(format!("/team/people/{person_id}"))
+                    .header("X-Org-Id", org.to_string())
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let resp_body = read_body(resp).await;
+        assert_eq!(resp_body["display_name"], "Updated Name");
+        assert_eq!(resp_body["team"], "Backend");
+    }
+
+    #[tokio::test]
+    async fn people_update_not_found_returns_404() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let app = build_router(state);
+        let org = Uuid::new_v4();
+        let body = serde_json::json!({
+            "display_name": "Ghost"
+        });
+        let resp = app
+            .oneshot(
+                Request::put(format!("/team/people/{}", Uuid::new_v4()))
+                    .header("X-Org-Id", org.to_string())
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn people_delete_soft_deletes() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let org = Uuid::new_v4();
+        let person_id = insert_person(&pool, org).await;
+
+        let app = build_router(state.clone());
+        let resp = app
+            .oneshot(
+                Request::delete(format!("/team/people/{person_id}"))
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+
+        // Verify still in DB but inactive
+        let row = sqlx::query("select status from people where id = $1")
+            .bind(person_id)
+            .fetch_one(&pool)
+            .await
+            .expect("person should still exist");
+        let status: String = row.get("status");
+        assert_eq!(status, "inactive");
+    }
+
+    #[tokio::test]
+    async fn people_delete_not_found_returns_404() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let app = build_router(state);
+        let org = Uuid::new_v4();
+        let resp = app
+            .oneshot(
+                Request::delete(format!("/team/people/{}", Uuid::new_v4()))
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn people_list_filters_inactive_by_default() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let org = Uuid::new_v4();
+        let person_id = insert_person(&pool, org).await;
+
+        // Soft delete the person
+        sqlx::query("update people set status = 'inactive' where id = $1")
+            .bind(person_id)
+            .execute(&pool)
+            .await
+            .expect("soft delete");
+
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::get("/team/people")
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = read_body(resp).await;
+        assert_eq!(body["count"], 0);
+    }
+
+    #[tokio::test]
+    async fn people_link_identity_happy_path() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let org = Uuid::new_v4();
+        let person_id = insert_person(&pool, org).await;
+        let identity_id = insert_identity(&pool, org).await;
+
+        let app = build_router(state);
+        let body = serde_json::json!({
+            "identity_id": identity_id
+        });
+        let resp = app
+            .oneshot(
+                Request::post(format!("/team/people/{person_id}/link"))
+                    .header("X-Org-Id", org.to_string())
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let resp_body = read_body(resp).await;
+        assert_eq!(resp_body["person_id"], person_id.to_string());
+        assert_eq!(resp_body["identity_id"], identity_id.to_string());
+        assert_eq!(resp_body["status"], "verified");
+    }
+
+    #[tokio::test]
+    async fn people_link_identity_person_not_found_returns_404() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let org = Uuid::new_v4();
+        let identity_id = insert_identity(&pool, org).await;
+
+        let app = build_router(state);
+        let body = serde_json::json!({
+            "identity_id": identity_id
+        });
+        let resp = app
+            .oneshot(
+                Request::post(format!("/team/people/{}/link", Uuid::new_v4()))
+                    .header("X-Org-Id", org.to_string())
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
 }
