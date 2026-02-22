@@ -403,6 +403,251 @@ Status legend: `todo | in_progress | review | done | blocked`
   - `docker compose -f backend/infra/docker-compose.swarm.yml config` validates.
   - Runbook covers same-host restore, new-host restore, and PITR (future).
 
+## Epic 6 — People Management & Multi-Identity Mapping
+
+### OVIA-6001 People CRUD API (Backend)
+- Status: `todo`
+- Priority: P0
+- Owner: Claude
+- Depends on: OVIA-1002
+- Description:
+  - Extend `PersonRepository` trait with `list(org_id, filters)`, `soft_delete(org_id, id)`.
+  - Implement `PgPersonRepository` for all CRUD methods (create, get_by_id, update, list, soft_delete).
+  - List endpoint supports filters: `team`, `status`, `search` (display_name/email substring), pagination (`limit`/`offset`).
+  - Soft delete sets `status = 'inactive'`, does not remove row.
+  - API endpoints:
+    - `GET /team/people` — paginated list with filters.
+    - `GET /team/people/:id` — single person with linked identity count.
+    - `POST /team/people` — create manual person.
+    - `PUT /team/people/:id` — update person fields.
+    - `DELETE /team/people/:id` — soft delete (set inactive).
+  - Response contract: `PersonResponse { id, display_name, primary_email, team, role, status, identity_count, created_at, updated_at }`.
+- Acceptance:
+  - All 5 endpoints return correct status codes and payloads.
+  - Soft delete preserves row, filters out inactive by default.
+  - Pagination works with `limit`/`offset` + total count header.
+  - Validation: display_name required, email format check.
+- Tests:
+  - DB: list with filters, soft delete, pagination boundary.
+  - API: 5 handler tests (list, get, create, update, delete) + 3 error cases (404, duplicate email, validation).
+
+### OVIA-6002 Manual Identity Linking API (Backend)
+- Status: `todo`
+- Priority: P0
+- Owner: Claude
+- Depends on: OVIA-6001, OVIA-1003
+- Description:
+  - API endpoints for manual identity-to-person linking:
+    - `POST /team/people/:id/identities` — link existing identity to person (creates `person_identity_link` with `status=verified`, `confidence=1.0`, `verified_by=manual`).
+    - `DELETE /team/people/:id/identities/:identity_id` — unlink identity from person (sets `valid_to=now()`, emits audit event).
+    - `GET /team/people/:id/identities` — list all linked identities for a person (with source, username, email, status, linked_at).
+  - Emit `identity_event` for every link/unlink action (`action=manual_link` / `action=manual_unlink`).
+  - Validate: identity must exist, must belong to same org, cannot link already-linked identity without explicit remap.
+  - Support linking unmatched identities (those without any person_identity_link).
+- Acceptance:
+  - Link/unlink operations are transactional with audit trail.
+  - Cannot link identity to two persons simultaneously (must remap).
+  - Unlinked identities appear in "orphan" pool for re-linking.
+- Tests:
+  - 4 handler tests: link, unlink, list identities, link-already-linked error.
+  - 2 integration tests: audit event emission, concurrent link conflict.
+
+### OVIA-6003 People List Page (Frontend)
+- Status: `todo`
+- Priority: P0
+- Owner: Claude
+- Depends on: OVIA-6001
+- Description:
+  - New route: `/team/people` with page component.
+  - Data table with columns: Name, Email, Team, Role, Status, Identities (count badge), Actions.
+  - Search bar (debounced, searches display_name + email).
+  - Filter chips: team (dropdown from distinct values), status (active/inactive/all).
+  - Pagination controls (reuse risk-table pattern).
+  - Row click navigates to Person 360 (`/team/people/:id`).
+  - "Add Person" button opens create dialog.
+  - Add navigation link in sidebar.
+  - i18n: en + ru messages for all labels and actions.
+- Acceptance:
+  - Table renders with real API data.
+  - Search debounce ≤300ms, filters update URL params.
+  - Empty state shown when no results.
+  - Responsive layout (table scrolls on mobile).
+- Tests:
+  - Render test with mock data.
+  - Search filter test.
+  - Pagination test.
+
+### OVIA-6004 Person Create/Edit Dialog (Frontend)
+- Status: `todo`
+- Priority: P1
+- Owner: Claude
+- Depends on: OVIA-6003
+- Description:
+  - Modal dialog for creating/editing a person.
+  - Fields: display_name (required), primary_email, team (dropdown/free-text), role (dropdown/free-text), status.
+  - Validation: display_name non-empty, email format if provided.
+  - On save: `POST /team/people` (create) or `PUT /team/people/:id` (edit).
+  - Success toast + table refresh.
+  - Delete confirmation dialog → `DELETE /team/people/:id`.
+  - i18n: en + ru for form labels, validation messages, confirmation text.
+- Acceptance:
+  - Form validates before submit.
+  - Create and edit flows work end-to-end.
+  - Delete shows confirmation, updates table on success.
+- Tests:
+  - Form validation test (empty name, invalid email).
+  - Create submit test with mock API.
+  - Edit pre-fill test.
+
+### OVIA-6005 Multi-Identity Mapping UI (Frontend)
+- Status: `todo`
+- Priority: P1
+- Owner: Claude
+- Depends on: OVIA-6002, OVIA-6004
+- Description:
+  - Identity linking panel within Person 360 or as standalone section.
+  - Shows all linked identities for a person with: source icon, username, email, status badge, linked date.
+  - "Link Identity" button opens search dialog:
+    - Search orphan identities by username/email/source.
+    - Select → calls `POST /team/people/:id/identities`.
+  - "Unlink" action per identity row → calls `DELETE /team/people/:id/identities/:identity_id` with confirmation.
+  - Visual indicator for identity sources (GitLab, Jira, Confluence, Git).
+  - i18n: en + ru.
+- Acceptance:
+  - Link/unlink reflected immediately in UI (optimistic update + refetch).
+  - Search filters work for orphan identities.
+  - Source icons render correctly for all known sources.
+- Tests:
+  - Link identity flow test.
+  - Unlink with confirmation test.
+  - Orphan search rendering test.
+
+## Epic 7 — Person 360 Profile & Activity Timeline
+
+### OVIA-7001 Person 360 Backend API
+- Status: `todo`
+- Priority: P1
+- Owner: Claude
+- Depends on: OVIA-6001, OVIA-6002
+- Description:
+  - `GET /team/people/:id/profile` — full profile with:
+    - Person fields (display_name, email, team, role, status).
+    - All linked identities with source, username, email, status, confidence.
+    - Summary stats: total_mrs, total_issues, active_days_30d.
+  - `GET /team/people/:id/activity` — unified activity timeline:
+    - Sources: `gitlab_merge_requests` (via person→identity→gitlab author), `jira_issues` (via person→identity→jira assignee/reporter), `identity_events` (mapping changes).
+    - Query params:
+      - `period`: `7d|30d|90d|custom` (with `from`/`to` for custom).
+      - `source`: `gitlab|jira|confluence|all` (comma-separated multi-select).
+      - `type`: `merge_request|issue|identity_event|all`.
+      - `limit`/`offset` for pagination.
+    - Response: `ActivityItem { id, source, type, title, url, timestamp, metadata }`.
+  - Activity query joins person→identity links→source tables via identity external_id matching.
+  - New DB queries in `PgGitlabRepository` and `PgJiraRepository`: `list_activity_by_identity_ids(ids, filters)`.
+- Acceptance:
+  - Profile returns all linked identities with stats.
+  - Activity timeline returns unified, chronologically sorted items.
+  - Filters work correctly (period, source, type).
+  - Pagination works with total count.
+- Tests:
+  - DB: 4 activity query tests (gitlab MRs by identity, jira issues by identity, combined, empty).
+  - API: 3 handler tests (profile, activity with filters, activity pagination).
+
+### OVIA-7002 Person 360 Page (Frontend)
+- Status: `todo`
+- Priority: P1
+- Owner: Claude
+- Depends on: OVIA-7001, OVIA-6005
+- Description:
+  - New route: `/team/people/:id` — Person 360 page.
+  - Layout sections:
+    1. **Header**: display_name, email, team, role, status badge, edit button.
+    2. **Identities panel**: linked identities list with source icons (reuse OVIA-6005 component).
+    3. **Stats row**: total MRs, total issues, active days (30d) as compact cards.
+    4. **Activity timeline**: chronological feed with source icon, type badge, title, timestamp.
+  - Activity timeline infinite scroll or "Load more" button.
+  - Breadcrumb navigation: People → Person Name.
+  - i18n: en + ru for all labels, empty states.
+- Acceptance:
+  - Page loads with profile data and activity feed.
+  - Identities panel shows all linked sources.
+  - Stats reflect real computed values.
+  - Breadcrumb navigation works.
+- Tests:
+  - Profile render test with mock data.
+  - Activity timeline render test.
+  - Empty state test (no activity).
+
+### OVIA-7003 Activity Timeline Filters (Frontend)
+- Status: `todo`
+- Priority: P2
+- Owner: Claude
+- Depends on: OVIA-7002
+- Description:
+  - Filter bar above activity timeline:
+    - Period selector: 7d / 30d / 90d / Custom date range picker.
+    - Source multi-select: GitLab, Jira, Confluence (with checkboxes).
+    - Type multi-select: Merge Requests, Issues, Identity Events.
+  - Filters persist in URL query params for shareability.
+  - Debounced re-fetch on filter change.
+  - "Clear filters" button resets to defaults (30d, all sources, all types).
+  - i18n: en + ru for filter labels, period names.
+- Acceptance:
+  - All filter combinations work correctly.
+  - URL updates on filter change, page loads with filters from URL.
+  - Clear button resets all filters.
+- Tests:
+  - Filter URL sync test.
+  - Period selector test.
+  - Source multi-select test.
+
+## Epic 8 — Confluence Content Integration (Optional)
+
+### OVIA-8001 Confluence Page Sync (Backend)
+- Status: `todo`
+- Priority: P2
+- Owner: Claude
+- Depends on: OVIA-3003
+- Description:
+  - Migration `0008_confluence_pages.sql`:
+    - `confluence_pages` table: `id (uuid)`, `org_id`, `external_id (text)`, `space_key (text)`, `title (text)`, `author_account_id (text)`, `last_modifier_account_id (text)`, `status (text)`, `created_at_source (timestamptz)`, `updated_at_source (timestamptz)`, `version (int)`, `url (text)`, `created_at`, `updated_at`.
+    - Indexes on `(org_id, space_key)`, `(org_id, author_account_id)`, `(org_id, updated_at_source)`.
+  - Extend `ConfluenceClient` with `fetch_pages(space_key, updated_since)` — paginated `/wiki/rest/api/content` with expand=version,history.
+  - New `ConfluencePageSyncer`:
+    - Watermark-locked sync per space.
+    - Upsert pages by external_id.
+    - Extract author/modifier account IDs for identity linking.
+  - DB repository: `PgConfluenceRepository` with `upsert_page`, `list_pages_by_author_ids(identity_ids, filters)`.
+  - Config: `CONFLUENCE_SPACE_KEYS` (CSV) env var for target spaces.
+- Acceptance:
+  - Pages synced with author/modifier metadata.
+  - Watermark-based incremental sync.
+  - Author account IDs linkable to existing Confluence identities.
+- Tests:
+  - 3 client tests: page fetch pagination, expand fields, retry.
+  - 3 DB tests: upsert page, list by author, filter by date range.
+  - 3 sync tests: lock-skip, incremental via cursor, author extraction.
+
+### OVIA-8002 Confluence Activity in Person 360
+- Status: `todo`
+- Priority: P2
+- Owner: Claude
+- Depends on: OVIA-8001, OVIA-7001
+- Description:
+  - Extend Person 360 activity query to include Confluence page edits.
+  - `PgConfluenceRepository::list_activity_by_identity_ids(ids, filters)` — returns page create/edit events.
+  - Activity item: `{ source: "confluence", type: "page_edit", title: page_title, url: page_url, timestamp: updated_at_source }`.
+  - Frontend: Confluence icon in activity timeline, source filter includes "Confluence" option.
+  - Confluence activity appears in unified chronological feed alongside GitLab/Jira items.
+- Acceptance:
+  - Confluence page edits appear in activity timeline.
+  - Source filter correctly includes/excludes Confluence items.
+  - Confluence icon renders in timeline.
+- Tests:
+  - DB: activity query returns confluence pages for linked identities.
+  - API: activity endpoint includes confluence items when source=confluence.
+  - Frontend: confluence icon render test.
+
 ---
 
 ## Execution policy

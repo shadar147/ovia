@@ -258,6 +258,143 @@ Rule: each task should be completable in one focused sprint (<=10 min), with a c
 ## OVIA-CI-001 Clippy lint fix (decomposed)
 - [x] MT-CI-001-01 Remove empty line after doc-comments in `classify.rs` (commit `d5ab246`).
 
+## OVIA-6001 People CRUD API — Backend (decomposed)
+- [ ] MT-6001-01 Extend `PersonRepository` trait: add `list(org_id, filters) -> Vec<Person>` and `soft_delete(org_id, id) -> Result`.
+- [ ] MT-6001-02 Add `PersonFilter` struct: `team: Option<String>`, `status: Option<String>`, `search: Option<String>`, `limit`, `offset`.
+- [ ] MT-6001-03 Implement `PgPersonRepository::list()` with search substring match on display_name + email, team/status filters, LIMIT/OFFSET.
+- [ ] MT-6001-04 Implement `PgPersonRepository::soft_delete()` — set `status='inactive'`, `updated_at=now()`.
+- [ ] MT-6001-05 Add DB integration tests: list with filters (3 tests), soft_delete + re-list (1 test), pagination boundary (1 test).
+- [ ] MT-6001-06 Create `api/src/people/` module — `mod.rs`, `handlers.rs`, `requests.rs`, `responses.rs`.
+- [ ] MT-6001-07 Define `PersonResponse` struct: `id, display_name, primary_email, team, role, status, identity_count, created_at, updated_at`.
+- [ ] MT-6001-08 Implement `GET /team/people` handler with filter query params + pagination.
+- [ ] MT-6001-09 Implement `GET /team/people/:id` handler with identity count sub-query.
+- [ ] MT-6001-10 Implement `POST /team/people` handler with validation (display_name required, email format).
+- [ ] MT-6001-11 Implement `PUT /team/people/:id` handler with partial update support.
+- [ ] MT-6001-12 Implement `DELETE /team/people/:id` handler — calls soft_delete, returns 204.
+- [ ] MT-6001-13 Register `/team/people` routes in API router.
+- [ ] MT-6001-14 Add 5 handler tests: list (200), get (200), create (201), update (200), delete (204).
+- [ ] MT-6001-15 Add 3 error handler tests: get 404, create validation 400, duplicate email 409.
+- [ ] MT-6001-16 Run `cargo sqlx prepare --workspace` to update `.sqlx/` offline cache.
+- [ ] MT-6001-17 Run `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --all` — all green.
+- [ ] MT-6001-18 Update delivery backlog status to `done`.
+
+## OVIA-6002 Manual Identity Linking API — Backend (decomposed)
+- [ ] MT-6002-01 Implement `POST /team/people/:id/identities` handler — validate person + identity exist, same org, not already linked.
+- [ ] MT-6002-02 Create `person_identity_link` with `status=verified`, `confidence=1.0`, `verified_by='manual'` in handler logic.
+- [ ] MT-6002-03 Emit `identity_event` with `action=manual_link` on successful link.
+- [ ] MT-6002-04 Implement `DELETE /team/people/:id/identities/:identity_id` handler — set `valid_to=now()`, emit `manual_unlink` event.
+- [ ] MT-6002-05 Implement `GET /team/people/:id/identities` handler — list linked identities with source, username, email, status, linked_at.
+- [ ] MT-6002-06 Add validation: reject link if identity already linked to another person (return 409 with remap hint).
+- [ ] MT-6002-07 Register `/team/people/:id/identities` routes in API router.
+- [ ] MT-6002-08 Add 4 handler tests: link (201), unlink (204), list identities (200), link-already-linked (409).
+- [ ] MT-6002-09 Add 2 integration tests: audit event emission check, concurrent link conflict.
+- [ ] MT-6002-10 Run `cargo sqlx prepare --workspace`, `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --all` — all green.
+- [ ] MT-6002-11 Update delivery backlog status to `done`.
+
+## OVIA-6003 People List Page — Frontend (decomposed)
+- [ ] MT-6003-01 Create route `/team/people` — add `app/(app)/team/people/page.tsx`.
+- [ ] MT-6003-02 Add sidebar navigation link "People" with users icon (between Team Identity and Reports).
+- [ ] MT-6003-03 Add API client functions: `fetchPeople(filters)`, `createPerson(data)`, `updatePerson(id, data)`, `deletePerson(id)`.
+- [ ] MT-6003-04 Add `Person`, `PersonFilter`, `PersonListResponse` types to `lib/api/types.ts`.
+- [ ] MT-6003-05 Create `PeopleTable` component — columns: Name, Email, Team, Role, Status badge, Identities count badge, Actions menu.
+- [ ] MT-6003-06 Add search bar with 300ms debounce, updates `search` URL param.
+- [ ] MT-6003-07 Add filter chips: team dropdown (fetched from distinct values), status toggle (active/inactive/all).
+- [ ] MT-6003-08 Add pagination controls (reuse risk-table pattern: 20/page, prev/next).
+- [ ] MT-6003-09 Row click handler: navigate to `/team/people/:id`.
+- [ ] MT-6003-10 Add "Add Person" button in page header.
+- [ ] MT-6003-11 Add i18n messages (en + ru): page title, column headers, empty state, filter labels.
+- [ ] MT-6003-12 Add render test with mock data, search filter test, pagination test.
+- [ ] MT-6003-13 Update delivery backlog status to `done`.
+
+## OVIA-6004 Person Create/Edit Dialog — Frontend (decomposed)
+- [ ] MT-6004-01 Create `PersonFormDialog` component — modal with fields: display_name (required), primary_email, team, role, status.
+- [ ] MT-6004-02 Add client-side validation: display_name non-empty, email format regex if provided.
+- [ ] MT-6004-03 Wire create mode: "Add Person" button → dialog → `POST /team/people` → success toast → table refresh.
+- [ ] MT-6004-04 Wire edit mode: row action "Edit" → pre-filled dialog → `PUT /team/people/:id` → success toast → table refresh.
+- [ ] MT-6004-05 Add delete confirmation dialog: row action "Delete" → confirm modal → `DELETE /team/people/:id` → toast → table refresh.
+- [ ] MT-6004-06 Add i18n messages (en + ru): form labels, validation errors, confirmation text, success/error toasts.
+- [ ] MT-6004-07 Add tests: form validation (empty name, invalid email), create submit mock, edit pre-fill.
+- [ ] MT-6004-08 Update delivery backlog status to `done`.
+
+## OVIA-6005 Multi-Identity Mapping UI — Frontend (decomposed)
+- [ ] MT-6005-01 Create `IdentityLinkPanel` component — shows linked identities with source icon, username, email, status badge, linked date.
+- [ ] MT-6005-02 Add source icon mapping: GitLab (git-merge), Jira (ticket), Confluence (file-text), Git (git-commit).
+- [ ] MT-6005-03 Add API client: `fetchPersonIdentities(personId)`, `linkIdentity(personId, identityId)`, `unlinkIdentity(personId, identityId)`.
+- [ ] MT-6005-04 Create "Link Identity" search dialog — search orphan identities by username/email/source with typeahead.
+- [ ] MT-6005-05 Wire link flow: search → select → `POST /team/people/:id/identities` → optimistic UI update → refetch.
+- [ ] MT-6005-06 Wire unlink flow: row "Unlink" button → confirmation dialog → `DELETE` → optimistic update → refetch.
+- [ ] MT-6005-07 Add i18n messages (en + ru): panel title, link/unlink labels, search placeholder, confirmation text, empty state.
+- [ ] MT-6005-08 Add tests: link identity flow, unlink with confirmation, orphan search rendering.
+- [ ] MT-6005-09 Update delivery backlog status to `done`.
+
+## OVIA-7001 Person 360 Backend API (decomposed)
+- [ ] MT-7001-01 Implement `GET /team/people/:id/profile` handler — return person + all linked identities + summary stats.
+- [ ] MT-7001-02 Add `PersonProfileResponse` struct: person fields + `identities: Vec<LinkedIdentity>` + `stats: ProfileStats`.
+- [ ] MT-7001-03 Add `ProfileStats` struct: `total_mrs: i64`, `total_issues: i64`, `active_days_30d: i64`.
+- [ ] MT-7001-04 Implement stats queries: count MRs by author identity IDs, count issues by assignee identity IDs, count distinct active days.
+- [ ] MT-7001-05 Implement `GET /team/people/:id/activity` handler with query params: `period`, `from`, `to`, `source`, `type`, `limit`, `offset`.
+- [ ] MT-7001-06 Define `ActivityItem` struct: `id, source, activity_type, title, url, timestamp, metadata`.
+- [ ] MT-7001-07 Add `PgGitlabRepository::list_activity_by_identity_ids(ids, period, limit, offset)` — returns MR activity items.
+- [ ] MT-7001-08 Add `PgJiraRepository::list_activity_by_identity_ids(ids, period, limit, offset)` — returns issue activity items.
+- [ ] MT-7001-09 Implement unified activity merge: query all sources in parallel, merge by timestamp desc, apply pagination.
+- [ ] MT-7001-10 Register `/team/people/:id/profile` and `/team/people/:id/activity` routes.
+- [ ] MT-7001-11 Add 4 DB tests: gitlab MRs by identity IDs, jira issues by identity IDs, combined query, empty result.
+- [ ] MT-7001-12 Add 3 API handler tests: profile with identities+stats, activity with filters, activity pagination.
+- [ ] MT-7001-13 Run `cargo sqlx prepare --workspace`, `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --all` — all green.
+- [ ] MT-7001-14 Update delivery backlog status to `done`.
+
+## OVIA-7002 Person 360 Page — Frontend (decomposed)
+- [ ] MT-7002-01 Create route `/team/people/:id` — add `app/(app)/team/people/[id]/page.tsx`.
+- [ ] MT-7002-02 Add API client: `fetchPersonProfile(id)`, `fetchPersonActivity(id, filters)`.
+- [ ] MT-7002-03 Create `PersonHeader` component: display_name, email, team badge, role, status badge, "Edit" button.
+- [ ] MT-7002-04 Create `PersonStats` component: 3 compact cards (Total MRs, Total Issues, Active Days 30d).
+- [ ] MT-7002-05 Embed `IdentityLinkPanel` from OVIA-6005 in profile page.
+- [ ] MT-7002-06 Create `ActivityTimeline` component: chronological feed with source icon, type badge, title (clickable link), relative timestamp.
+- [ ] MT-7002-07 Add "Load more" button at bottom of timeline (increments offset, appends items).
+- [ ] MT-7002-08 Add breadcrumb navigation: People → Person Name.
+- [ ] MT-7002-09 Add i18n messages (en + ru): section headers, stats labels, empty states, breadcrumb.
+- [ ] MT-7002-10 Add tests: profile render with mock data, activity timeline render, empty state.
+- [ ] MT-7002-11 Update delivery backlog status to `done`.
+
+## OVIA-7003 Activity Timeline Filters — Frontend (decomposed)
+- [ ] MT-7003-01 Create `ActivityFilters` component — filter bar above activity timeline.
+- [ ] MT-7003-02 Add period selector: 7d / 30d / 90d / Custom (date range picker).
+- [ ] MT-7003-03 Add source multi-select checkboxes: GitLab, Jira, Confluence.
+- [ ] MT-7003-04 Add type multi-select checkboxes: Merge Requests, Issues, Identity Events.
+- [ ] MT-7003-05 Persist filters in URL query params (`?period=30d&source=gitlab,jira&type=merge_request`).
+- [ ] MT-7003-06 Debounced re-fetch on filter change (300ms).
+- [ ] MT-7003-07 Add "Clear filters" button — resets to defaults (30d, all sources, all types).
+- [ ] MT-7003-08 Add i18n messages (en + ru): filter labels, period names, source names, type names, clear button.
+- [ ] MT-7003-09 Add tests: filter URL sync, period selector, source multi-select.
+- [ ] MT-7003-10 Update delivery backlog status to `done`.
+
+## OVIA-8001 Confluence Page Sync — Backend (decomposed)
+- [ ] MT-8001-01 Create `0008_confluence_pages.sql` migration: `confluence_pages` table with indexes on `(org_id, space_key)`, `(org_id, author_account_id)`, `(org_id, updated_at_source)`.
+- [ ] MT-8001-02 Create `db/src/confluence/models.rs` — `ConfluencePageRow` struct.
+- [ ] MT-8001-03 Create `db/src/confluence/pg_repository.rs` — `PgConfluenceRepository` with `upsert_page`, `list_pages_by_author_ids(ids, filters)`.
+- [ ] MT-8001-04 Wire `pub mod confluence` into `db/src/lib.rs`.
+- [ ] MT-8001-05 Add `CONFLUENCE_SPACE_KEYS` (CSV) env var to `ConfluenceClientConfig` with validation.
+- [ ] MT-8001-06 Extend `ConfluenceClient` with `fetch_pages(space_key, updated_since)` — paginated `/wiki/rest/api/content` with `expand=version,history`.
+- [ ] MT-8001-07 Create `ConfluencePageSyncer` — watermark-locked sync per space, upsert pages, extract author/modifier account IDs.
+- [ ] MT-8001-08 Wire page sync into `ingest/src/main.rs` after identity sync.
+- [ ] MT-8001-09 Update `.env.example` with `CONFLUENCE_SPACE_KEYS`.
+- [ ] MT-8001-10 Add 3 client tests: page fetch pagination, expand fields, retry on 5xx.
+- [ ] MT-8001-11 Add 3 DB tests: upsert page, list by author IDs, filter by date range.
+- [ ] MT-8001-12 Add 3 sync tests: lock-skip, incremental via cursor, author extraction.
+- [ ] MT-8001-13 Run `cargo sqlx prepare --workspace`, `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --all` — all green.
+- [ ] MT-8001-14 Update delivery backlog status to `done`.
+
+## OVIA-8002 Confluence Activity in Person 360 (decomposed)
+- [ ] MT-8002-01 Add `PgConfluenceRepository::list_activity_by_identity_ids(ids, filters)` — returns page create/edit as ActivityItem.
+- [ ] MT-8002-02 Extend Person 360 activity query to include Confluence source in unified merge.
+- [ ] MT-8002-03 Add Confluence icon to `ActivityTimeline` component source icon mapping.
+- [ ] MT-8002-04 Add "Confluence" option to source multi-select in `ActivityFilters`.
+- [ ] MT-8002-05 Add DB test: activity query returns confluence pages for linked identities.
+- [ ] MT-8002-06 Add API test: activity endpoint includes confluence items when `source=confluence`.
+- [ ] MT-8002-07 Add frontend test: confluence icon renders in timeline.
+- [ ] MT-8002-08 Update i18n (en + ru): "Confluence" source label, page_edit type label.
+- [ ] MT-8002-09 Update delivery backlog status to `done`.
+
 ## Operating cadence
 - One commit every 1–2 microtasks (max ~10 minutes work).
 - Each commit includes:
