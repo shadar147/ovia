@@ -183,6 +183,19 @@ Rule: each task should be completable in one focused sprint (<=10 min), with a c
 - [x] MT-3004-13 Run `cargo test -p ovia-db -p ovia-ingest -p ovia-metrics` — all 122 tests pass.
 - [x] MT-3004-14 Update delivery backlog and microtasks docs.
 
+## OVIA-3005 Jira Issue Sync — Block 1 (decomposed)
+- [x] MT-3005-01 Add `project_keys: Vec<String>` and `sync_window_days: u32` to `JiraClientConfig`.
+- [x] MT-3005-02 Change `JiraClientConfig::from_env()` to `Result<Option<Self>, String>` with fail-fast on missing `JIRA_PROJECT_KEYS`.
+- [x] MT-3005-03 Implement `parse_csv_project_keys()` helper with trim/uppercase/empty-reject.
+- [x] MT-3005-04 Add 8 tests for CSV parser and from_env behavior.
+- [x] MT-3005-05 Create `jira/query.rs` — `build_issue_search_jql()` with bounded window and project filter.
+- [x] MT-3005-06 Add 7 JQL builder tests: single/multi project, bounded window, escaping.
+- [x] MT-3005-07 Update `main.rs` to handle `Result<Option<_>>` with fail-fast panic.
+- [x] MT-3005-08 Update `.env.example` with `JIRA_PROJECT_KEYS` and `JIRA_SYNC_WINDOW_DAYS`.
+- [x] MT-3005-09 Update sync.rs test helpers for new config fields.
+- [x] MT-3005-10 Run `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test -p ovia-ingest` — all green (73 tests).
+- [x] MT-3005-11 Update delivery backlog and microtasks docs.
+
 ## Operating cadence
 - One commit every 1–2 microtasks (max ~10 minutes work).
 - Each commit includes:

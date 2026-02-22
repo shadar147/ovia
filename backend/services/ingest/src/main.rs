@@ -34,31 +34,42 @@ async fn main() {
         .unwrap_or_else(uuid::Uuid::new_v4);
 
     // Jira connector (optional — only runs if JIRA env vars are set)
-    if let Some(jira_config) = JiraClientConfig::from_env() {
-        tracing::info!("jira connector configured, starting sync");
+    // Fails fast if Jira creds are present but JIRA_PROJECT_KEYS is missing/empty
+    match JiraClientConfig::from_env() {
+        Ok(Some(jira_config)) => {
+            tracing::info!(
+                projects = ?jira_config.project_keys,
+                window_days = jira_config.sync_window_days,
+                "jira connector configured, starting sync"
+            );
 
-        let client = JiraClient::new(jira_config).expect("failed to create jira client");
-        let identity_repo =
-            ovia_db::identity::pg_repository::PgIdentityRepository::new(pool.clone());
-        let sync_repo = ovia_db::sync::pg_repository::PgSyncRepository::new(pool.clone());
+            let client = JiraClient::new(jira_config).expect("failed to create jira client");
+            let identity_repo =
+                ovia_db::identity::pg_repository::PgIdentityRepository::new(pool.clone());
+            let sync_repo = ovia_db::sync::pg_repository::PgSyncRepository::new(pool.clone());
 
-        let syncer = JiraSyncer::new(org_id, client, identity_repo, sync_repo);
+            let syncer = JiraSyncer::new(org_id, client, identity_repo, sync_repo);
 
-        match syncer.sync().await {
-            Ok(result) => {
-                tracing::info!(
-                    source = result.source,
-                    upserted = result.upserted,
-                    errors = result.errors,
-                    "jira sync completed"
-                );
-            }
-            Err(e) => {
-                tracing::error!(error = %e, "jira sync failed");
+            match syncer.sync().await {
+                Ok(result) => {
+                    tracing::info!(
+                        source = result.source,
+                        upserted = result.upserted,
+                        errors = result.errors,
+                        "jira sync completed"
+                    );
+                }
+                Err(e) => {
+                    tracing::error!(error = %e, "jira sync failed");
+                }
             }
         }
-    } else {
-        tracing::info!("no jira credentials found, skipping jira sync");
+        Ok(None) => {
+            tracing::info!("no jira credentials found, skipping jira sync");
+        }
+        Err(e) => {
+            panic!("jira configuration error (fail-fast): {e}");
+        }
     }
 
     // GitLab connector (optional — only runs if GITLAB env vars are set)

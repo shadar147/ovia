@@ -9,15 +9,39 @@ pub struct JiraClientConfig {
     pub base_url: String,
     pub email: String,
     pub api_token: String,
+    pub project_keys: Vec<String>,
+    pub sync_window_days: u32,
     pub max_retries: u32,
     pub timeout_secs: u64,
 }
 
 impl JiraClientConfig {
-    pub fn from_env() -> Option<Self> {
-        let base_url = std::env::var("JIRA_BASE_URL").ok()?;
-        let email = std::env::var("JIRA_EMAIL").ok()?;
-        let api_token = std::env::var("JIRA_API_TOKEN").ok()?;
+    /// Load Jira config from environment.
+    ///
+    /// Returns `Ok(None)` if Jira is not configured (base URL / email / token missing).
+    /// Returns `Err` if Jira IS configured but `JIRA_PROJECT_KEYS` is missing or empty
+    /// (fail-fast on misconfiguration).
+    pub fn from_env() -> Result<Option<Self>, String> {
+        let base_url = match std::env::var("JIRA_BASE_URL").ok() {
+            Some(v) => v,
+            None => return Ok(None),
+        };
+        let email = match std::env::var("JIRA_EMAIL").ok() {
+            Some(v) => v,
+            None => return Ok(None),
+        };
+        let api_token = match std::env::var("JIRA_API_TOKEN").ok() {
+            Some(v) => v,
+            None => return Ok(None),
+        };
+
+        // Jira IS configured — JIRA_PROJECT_KEYS is now mandatory
+        let project_keys = parse_csv_project_keys("JIRA_PROJECT_KEYS")?;
+
+        let sync_window_days = std::env::var("JIRA_SYNC_WINDOW_DAYS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(7);
         let max_retries = std::env::var("JIRA_MAX_RETRIES")
             .ok()
             .and_then(|v| v.parse().ok())
@@ -27,14 +51,38 @@ impl JiraClientConfig {
             .and_then(|v| v.parse().ok())
             .unwrap_or(30);
 
-        Some(Self {
+        Ok(Some(Self {
             base_url,
             email,
             api_token,
+            project_keys,
+            sync_window_days,
             max_retries,
             timeout_secs,
-        })
+        }))
     }
+}
+
+/// Parse a comma-separated list of Jira project keys from an env var.
+/// Returns `Err` if the var is missing or all entries are blank after trimming.
+pub fn parse_csv_project_keys(env_key: &str) -> Result<Vec<String>, String> {
+    let raw = std::env::var(env_key).map_err(|_| {
+        format!("{env_key} is required when Jira credentials are set, but not found")
+    })?;
+
+    let keys: Vec<String> = raw
+        .split(',')
+        .map(|s| s.trim().to_uppercase())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    if keys.is_empty() {
+        return Err(format!(
+            "{env_key} is set but contains no valid project keys"
+        ));
+    }
+
+    Ok(keys)
 }
 
 #[derive(Clone)]
@@ -177,6 +225,8 @@ mod tests {
             base_url: "http://localhost".to_string(),
             email: "test@example.com".to_string(),
             api_token: "fake-token".to_string(),
+            project_keys: vec!["PROJ".to_string()],
+            sync_window_days: 7,
             max_retries: 2,
             timeout_secs: 5,
         }
@@ -377,5 +427,98 @@ mod tests {
             .with_base_url(&server.uri());
 
         client.fetch_all_users().await.unwrap();
+    }
+
+    // ── CSV parser tests ─────────────────────────────────────────
+
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    #[test]
+    fn parse_csv_valid_multiple_keys() {
+        let _g = ENV_LOCK.lock().unwrap();
+        std::env::set_var("_TEST_KEYS", "PROJ, TEAM ,ops");
+        let keys = super::parse_csv_project_keys("_TEST_KEYS").unwrap();
+        assert_eq!(keys, vec!["PROJ", "TEAM", "OPS"]);
+        std::env::remove_var("_TEST_KEYS");
+    }
+
+    #[test]
+    fn parse_csv_single_key() {
+        let _g = ENV_LOCK.lock().unwrap();
+        std::env::set_var("_TEST_KEYS2", "SINGLE");
+        let keys = super::parse_csv_project_keys("_TEST_KEYS2").unwrap();
+        assert_eq!(keys, vec!["SINGLE"]);
+        std::env::remove_var("_TEST_KEYS2");
+    }
+
+    #[test]
+    fn parse_csv_empty_value_fails() {
+        let _g = ENV_LOCK.lock().unwrap();
+        std::env::set_var("_TEST_KEYS3", "  , , ");
+        let err = super::parse_csv_project_keys("_TEST_KEYS3").unwrap_err();
+        assert!(err.contains("no valid project keys"), "got: {err}");
+        std::env::remove_var("_TEST_KEYS3");
+    }
+
+    #[test]
+    fn parse_csv_missing_var_fails() {
+        let _g = ENV_LOCK.lock().unwrap();
+        std::env::remove_var("_TEST_KEYS_MISSING");
+        let err = super::parse_csv_project_keys("_TEST_KEYS_MISSING").unwrap_err();
+        assert!(err.contains("required"), "got: {err}");
+    }
+
+    #[test]
+    fn parse_csv_trims_whitespace_and_uppercases() {
+        let _g = ENV_LOCK.lock().unwrap();
+        std::env::set_var("_TEST_KEYS4", "  alpha , Beta,GAMMA  ");
+        let keys = super::parse_csv_project_keys("_TEST_KEYS4").unwrap();
+        assert_eq!(keys, vec!["ALPHA", "BETA", "GAMMA"]);
+        std::env::remove_var("_TEST_KEYS4");
+    }
+
+    #[test]
+    fn from_env_returns_none_when_no_jira_creds() {
+        let _g = ENV_LOCK.lock().unwrap();
+        std::env::remove_var("JIRA_BASE_URL");
+        std::env::remove_var("JIRA_EMAIL");
+        std::env::remove_var("JIRA_API_TOKEN");
+        std::env::remove_var("JIRA_PROJECT_KEYS");
+        let result = JiraClientConfig::from_env().unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn from_env_fails_when_creds_set_but_no_project_keys() {
+        let _g = ENV_LOCK.lock().unwrap();
+        std::env::set_var("JIRA_BASE_URL", "https://test.atlassian.net");
+        std::env::set_var("JIRA_EMAIL", "a@b.com");
+        std::env::set_var("JIRA_API_TOKEN", "tok");
+        std::env::remove_var("JIRA_PROJECT_KEYS");
+        let err = JiraClientConfig::from_env().unwrap_err();
+        assert!(err.contains("JIRA_PROJECT_KEYS"), "got: {err}");
+        std::env::remove_var("JIRA_BASE_URL");
+        std::env::remove_var("JIRA_EMAIL");
+        std::env::remove_var("JIRA_API_TOKEN");
+    }
+
+    #[test]
+    fn from_env_succeeds_with_all_vars() {
+        let _g = ENV_LOCK.lock().unwrap();
+        std::env::set_var("JIRA_BASE_URL", "https://test.atlassian.net");
+        std::env::set_var("JIRA_EMAIL", "a@b.com");
+        std::env::set_var("JIRA_API_TOKEN", "tok");
+        std::env::set_var("JIRA_PROJECT_KEYS", "DEV,OPS");
+        std::env::set_var("JIRA_SYNC_WINDOW_DAYS", "14");
+        let cfg = JiraClientConfig::from_env().unwrap().unwrap();
+        assert_eq!(cfg.project_keys, vec!["DEV", "OPS"]);
+        assert_eq!(cfg.sync_window_days, 14);
+        std::env::remove_var("JIRA_BASE_URL");
+        std::env::remove_var("JIRA_EMAIL");
+        std::env::remove_var("JIRA_API_TOKEN");
+        std::env::remove_var("JIRA_PROJECT_KEYS");
+        std::env::remove_var("JIRA_SYNC_WINDOW_DAYS");
     }
 }

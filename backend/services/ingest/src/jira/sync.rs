@@ -277,6 +277,8 @@ mod tests {
             base_url: base_url.to_string(),
             email: "test@example.com".to_string(),
             api_token: "token".to_string(),
+            project_keys: vec!["PROJ".to_string()],
+            sync_window_days: 7,
             max_retries: 1,
             timeout_secs: 5,
         }

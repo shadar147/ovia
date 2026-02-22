@@ -118,6 +118,27 @@ Status legend: `todo | in_progress | review | done | blocked`
   - 17 unit/integration tests: Jira models, client pagination, retry on 5xx, fail-fast on 4xx, sync orchestration, service account detection, raw_ref persistence.
   - 5 sync watermark repository tests: get_or_create, acquire_lock, concurrent lock rejection, mark_completed, mark_failed.
 
+### OVIA-3005 Jira Issue Sync — Block 1: Config + JQL Query Builder
+- Status: `done`
+- Priority: P1
+- Owner: Claude
+- Depends on: OVIA-3001
+- Description:
+  - `JIRA_PROJECT_KEYS` (CSV) env var added to `JiraClientConfig` with strict fail-fast validation.
+  - `JIRA_SYNC_WINDOW_DAYS` env var (default 7) for bounded JQL window.
+  - `JiraClientConfig::from_env()` returns `Result<Option<Self>, String>` — distinguishes "not configured" from "misconfigured".
+  - `parse_csv_project_keys()` helper: trims whitespace, uppercases, rejects empty.
+  - JQL query builder (`jira/query.rs`): `build_issue_search_jql()` generates `project in (...) AND updated >= "..." ORDER BY updated ASC`.
+  - JQL escaping for keys with special characters.
+  - `main.rs` updated to handle `Result<Option<_>>` with fail-fast panic on misconfiguration.
+  - `.env.example` updated with `JIRA_PROJECT_KEYS` and `JIRA_SYNC_WINDOW_DAYS`.
+- Acceptance:
+  - All 73 ingest tests pass (15 new).
+  - `cargo fmt --check` and `cargo clippy -D warnings` clean.
+- Tests:
+  - 8 config tests: CSV parse valid/single/empty/missing/whitespace, from_env none/fail-fast/success.
+  - 7 JQL tests: single/multi project, bounded window, escape special chars, plain key, hyphen key, clause formatting.
+
 ### OVIA-3002 GitLab incremental sync
 - Status: `done`
 - Priority: P1
