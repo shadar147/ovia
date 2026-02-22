@@ -195,8 +195,7 @@ where
             // Fetch and store changelog (replace strategy: delete old, insert new)
             match self.client.fetch_issue_changelog(&issue.key).await {
                 Ok(entries) => {
-                    let transitions =
-                        changelog_to_transitions(self.org_id, &issue.key, &entries);
+                    let transitions = changelog_to_transitions(self.org_id, &issue.key, &entries);
 
                     if !transitions.is_empty() {
                         if let Err(e) = self
@@ -426,8 +425,7 @@ mod tests {
                 { "id": 3, "name": "Sprint 3", "state": "future" }
             ]
         });
-        let fields: super::super::models::JiraIssueFields =
-            serde_json::from_value(json).unwrap();
+        let fields: super::super::models::JiraIssueFields = serde_json::from_value(json).unwrap();
 
         let sprint = fields.latest_sprint().unwrap();
         assert_eq!(sprint.name, "Sprint 2");
@@ -445,8 +443,7 @@ mod tests {
                 { "id": 3, "name": "Sprint 3", "state": "future" }
             ]
         });
-        let fields: super::super::models::JiraIssueFields =
-            serde_json::from_value(json).unwrap();
+        let fields: super::super::models::JiraIssueFields = serde_json::from_value(json).unwrap();
 
         let sprint = fields.latest_sprint().unwrap();
         assert_eq!(sprint.name, "Sprint 3");
@@ -460,8 +457,7 @@ mod tests {
             "labels": [],
             "customfield_10001": "Team Alpha"
         });
-        let fields: super::super::models::JiraIssueFields =
-            serde_json::from_value(json).unwrap();
+        let fields: super::super::models::JiraIssueFields = serde_json::from_value(json).unwrap();
         assert_eq!(fields.team_name().as_deref(), Some("Team Alpha"));
     }
 
@@ -473,8 +469,7 @@ mod tests {
             "labels": [],
             "customfield_10001": { "name": "Team Beta" }
         });
-        let fields: super::super::models::JiraIssueFields =
-            serde_json::from_value(json).unwrap();
+        let fields: super::super::models::JiraIssueFields = serde_json::from_value(json).unwrap();
         assert_eq!(fields.team_name().as_deref(), Some("Team Beta"));
     }
 
@@ -485,8 +480,7 @@ mod tests {
             "status": { "name": "Open" },
             "labels": []
         });
-        let fields: super::super::models::JiraIssueFields =
-            serde_json::from_value(json).unwrap();
+        let fields: super::super::models::JiraIssueFields = serde_json::from_value(json).unwrap();
         assert!(fields.team_name().is_none());
     }
 
@@ -561,9 +555,7 @@ mod tests {
     async fn search_issues_single_page() {
         let server = MockServer::start().await;
 
-        let response = make_search_response(vec![
-            make_issue_json("BEE-1", "Open", Some(3.0)),
-        ]);
+        let response = make_search_response(vec![make_issue_json("BEE-1", "Open", Some(3.0))]);
 
         Mock::given(method("GET"))
             .and(path("/rest/api/3/search"))

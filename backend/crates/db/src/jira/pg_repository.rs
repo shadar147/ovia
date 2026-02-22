@@ -94,14 +94,13 @@ impl PgJiraRepository {
         org_id: Uuid,
         jira_key: &str,
     ) -> OviaResult<u64> {
-        let result = sqlx::query(
-            "delete from jira_issue_transitions where org_id = $1 and jira_key = $2",
-        )
-        .bind(org_id)
-        .bind(jira_key)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| OviaError::Database(e.to_string()))?;
+        let result =
+            sqlx::query("delete from jira_issue_transitions where org_id = $1 and jira_key = $2")
+                .bind(org_id)
+                .bind(jira_key)
+                .execute(&self.pool)
+                .await
+                .map_err(|e| OviaError::Database(e.to_string()))?;
         Ok(result.rows_affected())
     }
 }
@@ -207,7 +206,9 @@ mod tests {
         let org = Uuid::new_v4();
         let issue = make_issue(org, "BEE-2");
         repo.upsert_issue(&issue).await.expect("first");
-        repo.upsert_issue(&issue).await.expect("second (idempotent)");
+        repo.upsert_issue(&issue)
+            .await
+            .expect("second (idempotent)");
     }
 
     #[tokio::test]
