@@ -215,6 +215,10 @@ mod tests {
             throughput_chores: 7,
             review_latency_median_hours: Some(4.5),
             review_latency_p90_hours: None,
+            blocker_count: 0,
+            spillover_rate: None,
+            cycle_time_p50_hours: None,
+            cycle_time_p90_hours: None,
             computed_at: Utc::now(),
             created_at: Utc::now(),
         }

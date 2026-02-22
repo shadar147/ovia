@@ -24,8 +24,10 @@ impl KpiRepository for PgKpiRepository {
             "insert into kpi_snapshots
              (id, org_id, period_start, period_end, delivery_health_score, release_risk_score,
               throughput_total, throughput_bugs, throughput_features, throughput_chores,
-              review_latency_median_hours, review_latency_p90_hours, computed_at, created_at)
-             values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+              review_latency_median_hours, review_latency_p90_hours,
+              blocker_count, spillover_rate, cycle_time_p50_hours, cycle_time_p90_hours,
+              computed_at, created_at)
+             values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
              on conflict (org_id, period_start, period_end)
              do update set
                delivery_health_score = excluded.delivery_health_score,
@@ -36,11 +38,22 @@ impl KpiRepository for PgKpiRepository {
                throughput_chores = excluded.throughput_chores,
                review_latency_median_hours = excluded.review_latency_median_hours,
                review_latency_p90_hours = excluded.review_latency_p90_hours,
+               blocker_count = excluded.blocker_count,
+               spillover_rate = excluded.spillover_rate,
+               cycle_time_p50_hours = excluded.cycle_time_p50_hours,
+               cycle_time_p90_hours = excluded.cycle_time_p90_hours,
                computed_at = excluded.computed_at
-             returning id, org_id, period_start, period_end, delivery_health_score::float8 as delivery_health_score,
-                       release_risk_score::float8 as release_risk_score, throughput_total, throughput_bugs,
-                       throughput_features, throughput_chores, review_latency_median_hours::float8 as review_latency_median_hours,
-                       review_latency_p90_hours::float8 as review_latency_p90_hours, computed_at, created_at",
+             returning id, org_id, period_start, period_end,
+                       delivery_health_score::float8 as delivery_health_score,
+                       release_risk_score::float8 as release_risk_score,
+                       throughput_total, throughput_bugs, throughput_features, throughput_chores,
+                       review_latency_median_hours::float8 as review_latency_median_hours,
+                       review_latency_p90_hours::float8 as review_latency_p90_hours,
+                       blocker_count,
+                       spillover_rate::float8 as spillover_rate,
+                       cycle_time_p50_hours::float8 as cycle_time_p50_hours,
+                       cycle_time_p90_hours::float8 as cycle_time_p90_hours,
+                       computed_at, created_at",
         )
         .bind(snapshot.id)
         .bind(snapshot.org_id)
@@ -54,6 +67,10 @@ impl KpiRepository for PgKpiRepository {
         .bind(snapshot.throughput_chores)
         .bind(snapshot.review_latency_median_hours)
         .bind(snapshot.review_latency_p90_hours)
+        .bind(snapshot.blocker_count)
+        .bind(snapshot.spillover_rate)
+        .bind(snapshot.cycle_time_p50_hours)
+        .bind(snapshot.cycle_time_p90_hours)
         .bind(snapshot.computed_at)
         .bind(snapshot.created_at)
         .fetch_one(&self.pool)
@@ -71,6 +88,10 @@ impl KpiRepository for PgKpiRepository {
                     throughput_total, throughput_bugs, throughput_features, throughput_chores,
                     review_latency_median_hours::float8 as review_latency_median_hours,
                     review_latency_p90_hours::float8 as review_latency_p90_hours,
+                    blocker_count,
+                    spillover_rate::float8 as spillover_rate,
+                    cycle_time_p50_hours::float8 as cycle_time_p50_hours,
+                    cycle_time_p90_hours::float8 as cycle_time_p90_hours,
                     computed_at, created_at
              from kpi_snapshots
              where org_id = $1
@@ -93,6 +114,10 @@ impl KpiRepository for PgKpiRepository {
              throughput_total, throughput_bugs, throughput_features, throughput_chores, \
              review_latency_median_hours::float8 as review_latency_median_hours, \
              review_latency_p90_hours::float8 as review_latency_p90_hours, \
+             blocker_count, \
+             spillover_rate::float8 as spillover_rate, \
+             cycle_time_p50_hours::float8 as cycle_time_p50_hours, \
+             cycle_time_p90_hours::float8 as cycle_time_p90_hours, \
              computed_at, created_at \
              from kpi_snapshots where 1=1",
         );
@@ -211,6 +236,10 @@ fn map_snapshot_row(row: &sqlx::postgres::PgRow) -> KpiSnapshot {
         throughput_chores: row.get("throughput_chores"),
         review_latency_median_hours: row.get("review_latency_median_hours"),
         review_latency_p90_hours: row.get("review_latency_p90_hours"),
+        blocker_count: row.get("blocker_count"),
+        spillover_rate: row.get("spillover_rate"),
+        cycle_time_p50_hours: row.get("cycle_time_p50_hours"),
+        cycle_time_p90_hours: row.get("cycle_time_p90_hours"),
         computed_at: row.get("computed_at"),
         created_at: row.get("created_at"),
     }
@@ -257,6 +286,19 @@ mod tests {
         .await
         .expect("create kpi_snapshots index");
 
+        // Jira KPI columns (migration 0007)
+        for stmt in &[
+            "alter table kpi_snapshots add column if not exists blocker_count integer not null default 0",
+            "alter table kpi_snapshots add column if not exists spillover_rate numeric(5,4)",
+            "alter table kpi_snapshots add column if not exists cycle_time_p50_hours numeric(8,2)",
+            "alter table kpi_snapshots add column if not exists cycle_time_p90_hours numeric(8,2)",
+        ] {
+            sqlx::query(stmt)
+                .execute(&pool)
+                .await
+                .expect("alter kpi_snapshots");
+        }
+
         sqlx::query(
             "create table if not exists risk_items (
               id uuid primary key default gen_random_uuid(),
@@ -301,6 +343,10 @@ mod tests {
             throughput_chores: 7,
             review_latency_median_hours: Some(4.5),
             review_latency_p90_hours: Some(12.0),
+            blocker_count: 2,
+            spillover_rate: Some(0.15),
+            cycle_time_p50_hours: Some(36.0),
+            cycle_time_p90_hours: Some(72.0),
             computed_at: now,
             created_at: now,
         }

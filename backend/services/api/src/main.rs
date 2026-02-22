@@ -802,6 +802,19 @@ mod tests {
         .await
         .expect("create kpi index");
 
+        // Jira KPI columns (migration 0007)
+        for stmt in &[
+            "alter table kpi_snapshots add column if not exists blocker_count integer not null default 0",
+            "alter table kpi_snapshots add column if not exists spillover_rate numeric(5,4)",
+            "alter table kpi_snapshots add column if not exists cycle_time_p50_hours numeric(8,2)",
+            "alter table kpi_snapshots add column if not exists cycle_time_p90_hours numeric(8,2)",
+        ] {
+            sqlx::query(stmt)
+                .execute(pool)
+                .await
+                .expect("alter kpi_snapshots for jira columns");
+        }
+
         sqlx::query(
             "create table if not exists risk_items (
               id uuid primary key default gen_random_uuid(),

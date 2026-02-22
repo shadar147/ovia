@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 use ovia_common::error::OviaResult;
 use ovia_db::gitlab::pg_repository::PgGitlabRepository;
+use ovia_db::jira::pg_repository::PgJiraRepository;
 use ovia_db::kpi::models::{KpiSnapshot, RiskItem};
 use ovia_db::kpi::repositories::KpiRepository;
 
@@ -37,20 +38,39 @@ impl<R: KpiRepository> KpiService<R> {
         period_end: NaiveDate,
     ) -> OviaResult<KpiSnapshot> {
         let gl_repo = PgGitlabRepository::new(self.pool.clone());
+        let jira_repo = PgJiraRepository::new(self.pool.clone());
 
-        // ── Throughput ──────────────────────────────────────────────
-        let throughput_total = gl_repo
+        // ── GitLab throughput ─────────────────────────────────────────
+        let mr_total = gl_repo
             .count_merged_mrs(org_id, period_start, period_end)
             .await? as i32;
 
-        let throughput_bugs = gl_repo
+        let mr_bugs = gl_repo
             .count_merged_mrs_by_label(org_id, period_start, period_end, "bug")
             .await? as i32;
 
-        let throughput_features = gl_repo
+        let mr_features = gl_repo
             .count_merged_mrs_by_label(org_id, period_start, period_end, "feature")
             .await? as i32;
 
+        // ── Jira throughput (resolved issues by type) ─────────────────
+        let jira_bugs = jira_repo
+            .count_resolved_issues_by_type(org_id, period_start, period_end, "Bug")
+            .await? as i32;
+
+        let jira_stories = jira_repo
+            .count_resolved_issues_by_type(org_id, period_start, period_end, "Story")
+            .await? as i32;
+
+        let jira_resolved_total = jira_repo
+            .count_resolved_issues(org_id, period_start, period_end)
+            .await? as i32;
+
+        // Combine MR + Jira throughput (MR labels are usually empty → all chores,
+        // so Jira provides the primary bug/feature breakdown)
+        let throughput_bugs = mr_bugs + jira_bugs;
+        let throughput_features = mr_features + jira_stories;
+        let throughput_total = mr_total + jira_resolved_total;
         let throughput_chores = (throughput_total - throughput_bugs - throughput_features).max(0);
 
         // ── Review latency ──────────────────────────────────────────
@@ -63,6 +83,16 @@ impl<R: KpiRepository> KpiService<R> {
         let review_latency_p90 =
             percentile(&durations.iter().map(|d| d.hours).collect::<Vec<_>>(), 90.0);
 
+        // ── Jira metrics ──────────────────────────────────────────────
+        let blocker_count = jira_repo.count_open_blockers(org_id).await? as i32;
+        let spillover_rate = jira_repo.spillover_rate(org_id).await?;
+
+        let cycle_times = jira_repo
+            .get_cycle_times_hours(org_id, period_start, period_end)
+            .await?;
+        let cycle_time_p50 = percentile(&cycle_times, 50.0);
+        let cycle_time_p90 = percentile(&cycle_times, 90.0);
+
         // ── Risk inputs ─────────────────────────────────────────────
         let failing_pipelines = gl_repo
             .count_pipelines_by_status(org_id, period_start, period_end, "failed")
@@ -70,17 +100,18 @@ impl<R: KpiRepository> KpiService<R> {
 
         let stale_mr_pct = gl_repo.stale_mr_percentage(org_id, 7).await?;
 
+        let blocker_age_days = jira_repo.list_open_blocker_age_days(org_id).await?;
+
         // ── Scores ──────────────────────────────────────────────────
-        // blocker_count and spillover_rate remain 0 until Jira sync is added
         let delivery_health = compute_delivery_health(
             throughput_total,
             review_latency_median.unwrap_or(0.0),
-            0,   // blocker_count — requires Jira
-            0.0, // spillover_rate — requires Jira
+            blocker_count,
+            spillover_rate,
         );
 
         let (_risk_label, release_risk) =
-            compute_release_risk(&[], failing_pipelines, stale_mr_pct);
+            compute_release_risk(&blocker_age_days, failing_pipelines, stale_mr_pct);
 
         let now = Utc::now();
         let snapshot_id = Uuid::new_v4();
@@ -97,6 +128,10 @@ impl<R: KpiRepository> KpiService<R> {
             throughput_chores,
             review_latency_median_hours: review_latency_median,
             review_latency_p90_hours: review_latency_p90,
+            blocker_count,
+            spillover_rate: Some(spillover_rate),
+            cycle_time_p50_hours: cycle_time_p50,
+            cycle_time_p90_hours: cycle_time_p90,
             computed_at: now,
             created_at: now,
         };
@@ -265,12 +300,17 @@ mod tests {
             throughput_chores: 3,
             review_latency_median_hours: Some(4.0),
             review_latency_p90_hours: None,
+            blocker_count: 1,
+            spillover_rate: Some(0.2),
+            cycle_time_p50_hours: Some(24.0),
+            cycle_time_p90_hours: Some(48.0),
             computed_at: Utc::now(),
             created_at: Utc::now(),
         };
 
         let saved = mock_repo.save_snapshot(snapshot).await.unwrap();
         assert_eq!(saved.throughput_total, 10);
+        assert_eq!(saved.blocker_count, 1);
         assert_eq!(mock_repo.saved_snapshots.lock().unwrap().len(), 1);
     }
 }

@@ -16,6 +16,10 @@ pub struct KpiSnapshot {
     pub throughput_chores: i32,
     pub review_latency_median_hours: Option<f64>,
     pub review_latency_p90_hours: Option<f64>,
+    pub blocker_count: i32,
+    pub spillover_rate: Option<f64>,
+    pub cycle_time_p50_hours: Option<f64>,
+    pub cycle_time_p90_hours: Option<f64>,
     pub computed_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
 }
