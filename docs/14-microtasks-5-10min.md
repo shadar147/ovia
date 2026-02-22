@@ -196,6 +196,43 @@ Rule: each task should be completable in one focused sprint (<=10 min), with a c
 - [x] MT-3005-10 Run `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test -p ovia-ingest` — all green (73 tests).
 - [x] MT-3005-11 Update delivery backlog and microtasks docs.
 
+## OVIA-3006 Jira Issue Sync — Block 2 (decomposed)
+- [x] MT-3006-01 Create `0006_jira_issues.sql` migration with `jira_issues` + `jira_issue_transitions` tables.
+- [x] MT-3006-02 Create `db/src/jira/models.rs` — `JiraIssueRow`, `JiraIssueTransitionRow` structs.
+- [x] MT-3006-03 Create `db/src/jira/pg_repository.rs` — `PgJiraRepository` with `upsert_issue`, `insert_transition`, `delete_transitions`.
+- [x] MT-3006-04 Add API models: `JiraSearchResponse`, `JiraIssue`, `JiraChangelogResponse` with sprint/team/story_points.
+- [x] MT-3006-05 Add `search_issues()` to `JiraClient` — paginated `/rest/api/3/search` with JQL.
+- [x] MT-3006-06 Add `fetch_issue_changelog()` to `JiraClient` — paginated changelog endpoint.
+- [x] MT-3006-07 Refactor client to generic `request_with_retry<T: DeserializeOwned>`.
+- [x] MT-3006-08 Create `ingest/src/jira/issue_sync.rs` — `JiraIssueSyncer` with watermark lock + JQL window.
+- [x] MT-3006-09 Implement changelog extraction: status + sprint transitions, replace strategy.
+- [x] MT-3006-10 Parse analytics fields: `customfield_10016` (story_points), `customfield_10020` (sprint), `customfield_10001` (team).
+- [x] MT-3006-11 Wire issue sync into `ingest/src/main.rs` after identity sync.
+- [x] MT-3006-12 Add 17 issue_sync tests + 3 DB tests (20 new, 141 total).
+- [x] MT-3006-13 Run `cargo fmt --check`, `cargo clippy -D warnings` — clean (after fmt fix).
+- [x] MT-3006-14 Update delivery backlog and microtasks docs.
+
+## OVIA-3007 Jira Issue Sync — Block 3A (decomposed)
+- [x] MT-3007-01 Create `0007_kpi_jira_columns.sql` migration — add 4 Jira columns to `kpi_snapshots`.
+- [x] MT-3007-02 Add `count_open_blockers()` to `PgJiraRepository`.
+- [x] MT-3007-03 Add `list_open_blocker_age_days()` to `PgJiraRepository`.
+- [x] MT-3007-04 Add `spillover_rate()` to `PgJiraRepository`.
+- [x] MT-3007-05 Add `get_cycle_times_hours()` to `PgJiraRepository`.
+- [x] MT-3007-06 Add `count_resolved_issues()` and `count_resolved_issues_by_type()` to `PgJiraRepository`.
+- [x] MT-3007-07 Wire Jira metrics into `KpiService::compute_and_save` — combine MR + Jira throughput, feed blockers into risk.
+- [x] MT-3007-08 Update `KpiSnapshot` model with 4 new optional fields.
+- [x] MT-3007-09 Add 8 integration tests for Jira metric queries.
+- [x] MT-3007-10 Run `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test` — all green.
+
+## OVIA-3008 Jira Issue Sync — Block 3B (decomposed)
+- [x] MT-3008-01 Wire `blocker_count`, `spillover_rate`, `cycle_time_p50_hours`, `cycle_time_p90_hours` into KPI API response.
+- [x] MT-3008-02 Update `/team/kpi`, `/team/kpi/history`, `/team/kpi/risks` endpoints with Jira fields.
+- [x] MT-3008-03 Update test fixtures with Jira metric values.
+- [x] MT-3008-04 Add `kpi_response_contract_includes_all_fields` contract test.
+- [x] MT-3008-05 Add `kpi_history_includes_jira_metrics` test.
+- [x] MT-3008-06 Verify 203 total tests pass (59 db + 90 ingest + 16 metrics + 34 api + 4 rag).
+- [x] MT-3008-07 Update delivery backlog and microtasks docs.
+
 ## Operating cadence
 - One commit every 1–2 microtasks (max ~10 minutes work).
 - Each commit includes:

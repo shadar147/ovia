@@ -139,6 +139,60 @@ Status legend: `todo | in_progress | review | done | blocked`
   - 8 config tests: CSV parse valid/single/empty/missing/whitespace, from_env none/fail-fast/success.
   - 7 JQL tests: single/multi project, bounded window, escape special chars, plain key, hyphen key, clause formatting.
 
+### OVIA-3006 Jira Issue Sync — Block 2: Ingest Issues, Changelog, Analytics Fields
+- Status: `done`
+- Priority: P1
+- Owner: Claude
+- Depends on: OVIA-3005
+- Description:
+  - Migration 0006: `jira_issues` + `jira_issue_transitions` tables.
+  - DB layer: `PgJiraRepository` with `upsert_issue`, `insert_transition`, `delete_transitions`.
+  - API models: `JiraSearchResponse`, `JiraIssue`, `JiraChangelogResponse` with sprint/team/story_points.
+  - Client: `search_issues` (paginated `/rest/api/3/search`), `fetch_issue_changelog` (paginated).
+  - Generic `request_with_retry<T: DeserializeOwned>` replacing typed version.
+  - `JiraIssueSyncer`: watermark-locked sync with JQL bounded by project keys + time window.
+  - Changelog: extracts status + sprint transitions, replace strategy (delete old + insert new).
+  - Analytics fields: `customfield_10016` (story_points), `customfield_10020` (sprint), `customfield_10001` (team).
+- Acceptance:
+  - All 141 tests pass (20 new: 17 issue_sync + 3 DB).
+  - `cargo fmt --check` and `cargo clippy -D warnings` clean (after fmt fix commit).
+- Tests:
+  - 17 issue_sync tests: pagination, changelog extraction, sprint/team/story_points parsing, watermark lock, wiremock integration.
+  - 3 DB tests: upsert_issue, insert_transition, delete_transitions.
+
+### OVIA-3007 Jira Issue Sync — Block 3A: Compute Jira Metrics in KPI Pipeline
+- Status: `done`
+- Priority: P1
+- Owner: Claude
+- Depends on: OVIA-3006
+- Description:
+  - Migration 0007: add `blocker_count`, `spillover_rate`, `cycle_time_p50_hours`, `cycle_time_p90_hours` to `kpi_snapshots`.
+  - `PgJiraRepository`: 6 new query methods (`count_open_blockers`, `list_open_blocker_age_days`, `spillover_rate`, `get_cycle_times_hours`, `count_resolved_issues`, `count_resolved_issues_by_type`).
+  - `KpiService`: wire Jira metrics into `compute_and_save`, combine MR + Jira throughput, feed real blocker data into risk score.
+  - `KpiSnapshot` model: 4 new optional fields (additive, non-breaking).
+- Acceptance:
+  - 8 new integration tests for Jira metrics queries.
+  - All tests pass, clippy clean, fmt clean.
+- Tests:
+  - 8 Jira metric query tests in `ovia-db`.
+
+### OVIA-3008 Jira Issue Sync — Block 3B: Integrate Jira Metrics into /team/kpi API
+- Status: `done`
+- Priority: P1
+- Owner: Claude
+- Depends on: OVIA-3007
+- Description:
+  - Wire `blocker_count`, `spillover_rate`, `cycle_time_p50_hours`, `cycle_time_p90_hours` into KPI API response contract (additive, non-breaking).
+  - All three endpoints (`/team/kpi`, `/team/kpi/history`, `/team/kpi/risks`) now return Jira-derived fields.
+  - Updated test fixtures to include Jira metric values.
+- Acceptance:
+  - 203 total tests pass across all crates (59 db + 90 ingest + 16 metrics + 34 api + 4 rag).
+  - `cargo fmt --check` and `cargo clippy -D warnings` clean.
+- Tests:
+  - `kpi_response_contract_includes_all_fields` contract test.
+  - `kpi_history_includes_jira_metrics` test.
+  - Updated assertions in `kpi_latest` test.
+
 ### OVIA-3002 GitLab incremental sync
 - Status: `done`
 - Priority: P1
