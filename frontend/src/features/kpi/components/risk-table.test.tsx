@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { RiskTable } from "./risk-table";
 import type { RiskItem } from "@/lib/api/types";
 
@@ -89,5 +90,47 @@ describe("RiskTable", () => {
     const underscoreStatus = { ...mockRisk, status: "in_review" };
     render(<RiskTable risks={[underscoreStatus]} />);
     expect(screen.getByText("in review")).toBeInTheDocument();
+  });
+
+  it("does not show pagination for <= 20 items", () => {
+    const risks = Array.from({ length: 20 }, (_, i) => ({
+      ...mockRisk,
+      id: `r-${i}`,
+    }));
+    render(<RiskTable risks={risks} />);
+    expect(screen.queryByText(/of 20/)).not.toBeInTheDocument();
+  });
+
+  it("shows pagination for > 20 items", () => {
+    const risks = Array.from({ length: 25 }, (_, i) => ({
+      ...mockRisk,
+      id: `r-${i}`,
+      title: `Risk ${i}`,
+    }));
+    render(<RiskTable risks={risks} />);
+    expect(screen.getByText("1–20 of 25")).toBeInTheDocument();
+  });
+
+  it("navigates pages with next/prev buttons", async () => {
+    const user = userEvent.setup();
+    const risks = Array.from({ length: 25 }, (_, i) => ({
+      ...mockRisk,
+      id: `r-${i}`,
+      title: `Risk ${i}`,
+    }));
+    render(<RiskTable risks={risks} />);
+
+    // Page 1: shows 1-20
+    expect(screen.getByText("1–20 of 25")).toBeInTheDocument();
+    expect(screen.getByText("Risk 0")).toBeInTheDocument();
+
+    // Go to page 2
+    const buttons = screen.getAllByRole("button");
+    const nextBtn = buttons[buttons.length - 1];
+    await user.click(nextBtn);
+
+    expect(screen.getByText("21–25 of 25")).toBeInTheDocument();
+    expect(screen.getByText("Risk 20")).toBeInTheDocument();
+    expect(screen.queryByText("Risk 0")).not.toBeInTheDocument();
   });
 });

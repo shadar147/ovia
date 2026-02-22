@@ -3,7 +3,7 @@
 import type { KpiSnapshot } from "@/lib/api/types";
 import { KpiCard } from "./kpi-card";
 import { HealthScoreBadge } from "./health-score-badge";
-import { Heart, ShieldAlert, Zap, Clock } from "lucide-react";
+import { Heart, ShieldAlert, Zap, Clock, AlertTriangle, RefreshCw, Timer } from "lucide-react";
 import { useTranslation } from "@/i18n";
 
 interface KpiCardsRowProps {
@@ -18,6 +18,11 @@ export function KpiCardsRow({ latest, previous }: KpiCardsRowProps) {
   const riskDelta = computeDelta(latest.release_risk_score, previous?.release_risk_score);
   const throughputDelta = previous ? latest.throughput_total - previous.throughput_total : null;
   const latencyDelta = computeDelta(latest.review_latency_median_hours, previous?.review_latency_median_hours);
+  const blockerDelta = previous ? latest.blocker_count - previous.blocker_count : null;
+  const prevSpilloverPct = previous?.spillover_rate != null ? previous.spillover_rate * 100 : null;
+  const currSpilloverPct = latest.spillover_rate != null ? latest.spillover_rate * 100 : null;
+  const spilloverDelta = computeDelta(currSpilloverPct, prevSpilloverPct);
+  const cycleTimeDelta = computeDelta(latest.cycle_time_p50_hours, previous?.cycle_time_p50_hours);
 
   return (
     <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -65,6 +70,36 @@ export function KpiCardsRow({ latest, previous }: KpiCardsRowProps) {
         deltaLabel="hrs"
         icon={Clock}
         iconColor="text-purple-500"
+      />
+      <KpiCard
+        title={t("kpi.blockerCount")}
+        value={String(latest.blocker_count)}
+        subtitle={t("kpi.lowerIsBetter")}
+        description={t("kpi.blockerCountDesc")}
+        delta={blockerDelta !== null ? -blockerDelta : null}
+        deltaLabel=""
+        icon={AlertTriangle}
+        iconColor="text-red-500"
+      />
+      <KpiCard
+        title={t("kpi.spilloverRate")}
+        value={latest.spillover_rate !== null ? `${(latest.spillover_rate * 100).toFixed(1)}%` : "N/A"}
+        subtitle={t("kpi.lowerIsBetter")}
+        description={t("kpi.spilloverRateDesc")}
+        delta={spilloverDelta !== null ? -spilloverDelta : null}
+        deltaLabel="pp"
+        icon={RefreshCw}
+        iconColor="text-amber-500"
+      />
+      <KpiCard
+        title={t("kpi.cycleTime")}
+        value={latest.cycle_time_p50_hours !== null ? `${latest.cycle_time_p50_hours.toFixed(1)}h` : "N/A"}
+        subtitle={latest.cycle_time_p90_hours !== null ? `P90: ${latest.cycle_time_p90_hours.toFixed(1)}h` : undefined}
+        description={t("kpi.cycleTimeDesc")}
+        delta={cycleTimeDelta !== null ? -cycleTimeDelta : null}
+        deltaLabel="hrs"
+        icon={Timer}
+        iconColor="text-teal-500"
       />
     </div>
   );

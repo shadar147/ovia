@@ -23,6 +23,10 @@ const base: KpiSnapshot = {
   throughput_chores: 31,
   review_latency_median_hours: 4.2,
   review_latency_p90_hours: 18.7,
+  blocker_count: 0,
+  spillover_rate: null,
+  cycle_time_p50_hours: null,
+  cycle_time_p90_hours: null,
   computed_at: "2026-02-22T00:00:00Z",
   created_at: "2026-02-22T00:00:00Z",
 };

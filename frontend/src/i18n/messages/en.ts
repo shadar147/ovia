@@ -46,6 +46,12 @@ export const messages = {
   "kpi.releaseRiskDesc": "Weighted score 0-100:\n40% Blocker age (count x10 + total days x0.5)\n30% Failing pipelines (each = 20 pts)\n30% Stale MR percentage\nLabels: <35 Low, 35-70 Medium, >70 High",
   "kpi.throughputDesc": "Total completed work items per period.\nBreakdown: features + bugs + chores.\nSource: closed Jira issues / MRs merged.",
   "kpi.latencyDesc": "Median time from MR opened to first review.\nP90 = 90th percentile (worst 10% of reviews).\nTarget: median <4h, P90 <12h.",
+  "kpi.blockerCount": "Blockers",
+  "kpi.blockerCountDesc": "Open Jira issues with Blocker/Highest priority.\nDirectly impacts release risk score (40% weight).",
+  "kpi.spilloverRate": "Spillover Rate",
+  "kpi.spilloverRateDesc": "Fraction of sprint items not completed in the sprint.\n0% = all done, 100% = nothing completed.\nAffects delivery health score (20% weight).",
+  "kpi.cycleTime": "Cycle Time",
+  "kpi.cycleTimeDesc": "P50 (median) time from issue creation to resolution.\nP90 shown as subtitle.\nSource: resolved Jira issues in period.",
 
   // ── Health ──
   "health.healthy": "Healthy",
@@ -71,6 +77,7 @@ export const messages = {
   "risk.status": "Status",
   "risk.noRisks": "No risks detected — great work!",
   "risk.unassigned": "Unassigned",
+  "risk.pageInfo": "{from}–{to} of {total}",
 
   // ── Identity page ──
   "identity.title": "Identity Mapping",

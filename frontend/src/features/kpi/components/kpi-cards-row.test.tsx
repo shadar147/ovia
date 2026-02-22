@@ -16,21 +16,31 @@ const base: KpiSnapshot = {
   throughput_chores: 31,
   review_latency_median_hours: 4.2,
   review_latency_p90_hours: 18.7,
+  blocker_count: 3,
+  spillover_rate: 0.15,
+  cycle_time_p50_hours: 36.5,
+  cycle_time_p90_hours: 72.0,
   computed_at: "2026-02-22T00:00:00Z",
   created_at: "2026-02-22T00:00:00Z",
 };
 
 describe("KpiCardsRow", () => {
-  it("renders all four KPI cards with valid data", () => {
+  it("renders all seven KPI cards with valid data", () => {
     render(<KpiCardsRow latest={base} />);
     expect(screen.getByText("Delivery Health")).toBeInTheDocument();
     expect(screen.getByText("Release Risk")).toBeInTheDocument();
     expect(screen.getByText("Throughput")).toBeInTheDocument();
     expect(screen.getByText("Review Latency")).toBeInTheDocument();
+    expect(screen.getByText("Blockers")).toBeInTheDocument();
+    expect(screen.getByText("Spillover Rate")).toBeInTheDocument();
+    expect(screen.getByText("Cycle Time")).toBeInTheDocument();
     expect(screen.getByText("75.3")).toBeInTheDocument();
     expect(screen.getByText("42.1")).toBeInTheDocument();
     expect(screen.getByText("48")).toBeInTheDocument();
     expect(screen.getByText("4.2h")).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
+    expect(screen.getByText("15.0%")).toBeInTheDocument();
+    expect(screen.getByText("36.5h")).toBeInTheDocument();
   });
 
   it("shows N/A for all null scores", () => {
@@ -40,11 +50,14 @@ describe("KpiCardsRow", () => {
       release_risk_score: null,
       review_latency_median_hours: null,
       review_latency_p90_hours: null,
+      spillover_rate: null,
+      cycle_time_p50_hours: null,
+      cycle_time_p90_hours: null,
     };
     render(<KpiCardsRow latest={allNull} />);
     const naElements = screen.getAllByText("N/A");
-    // delivery_health N/A value + health badge N/A + release_risk N/A + latency N/A = 4
-    expect(naElements.length).toBeGreaterThanOrEqual(3);
+    // delivery_health N/A + health badge N/A + release_risk N/A + latency N/A + spillover N/A + cycle_time N/A = 6
+    expect(naElements.length).toBeGreaterThanOrEqual(5);
   });
 
   it("renders zero throughput correctly", () => {

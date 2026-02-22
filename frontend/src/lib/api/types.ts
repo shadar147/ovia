@@ -95,6 +95,10 @@ export interface KpiSnapshot {
   throughput_chores: number;
   review_latency_median_hours: number | null;
   review_latency_p90_hours: number | null;
+  blocker_count: number;
+  spillover_rate: number | null;
+  cycle_time_p50_hours: number | null;
+  cycle_time_p90_hours: number | null;
   computed_at: string;
   created_at: string;
 }
