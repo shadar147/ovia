@@ -22,17 +22,18 @@ impl JiraUser {
 
 // ── Issue search API response types ─────────────────────────────
 
-/// Top-level response from `/rest/api/3/search`.
+/// Top-level response from `/rest/api/3/search/jql`.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JiraSearchResponse {
+    #[serde(default)]
     #[allow(dead_code)]
-    pub start_at: usize,
-    #[allow(dead_code)]
-    pub max_results: usize,
     pub total: usize,
     #[serde(default)]
     pub issues: Vec<JiraIssue>,
+    /// Cursor for the next page; `None` means last page.
+    #[serde(default)]
+    pub next_page_token: Option<String>,
 }
 
 /// A single issue from the search response.

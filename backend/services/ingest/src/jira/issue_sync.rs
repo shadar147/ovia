@@ -340,8 +340,6 @@ mod tests {
     fn make_search_response(issues: Vec<serde_json::Value>) -> serde_json::Value {
         let total = issues.len();
         serde_json::json!({
-            "startAt": 0,
-            "maxResults": 50,
             "total": total,
             "issues": issues
         })
@@ -633,7 +631,7 @@ mod tests {
         let response = make_search_response(vec![make_issue_json("BEE-1", "Open", Some(3.0))]);
 
         Mock::given(method("GET"))
-            .and(path("/rest/api/3/search"))
+            .and(path("/rest/api/3/search/jql"))
             .respond_with(ResponseTemplate::new(200).set_body_json(&response))
             .mount(&server)
             .await;
@@ -648,39 +646,34 @@ mod tests {
     async fn search_issues_multiple_pages() {
         let server = MockServer::start().await;
 
-        // Page 1: 50 issues (triggers next page)
+        // Page 1: 50 issues with nextPageToken (triggers page 2)
         let issues_p1: Vec<serde_json::Value> = (0..50)
             .map(|i| make_issue_json(&format!("BEE-{i}"), "Open", None))
             .collect();
         let response_p1 = serde_json::json!({
-            "startAt": 0,
-            "maxResults": 50,
             "total": 60,
-            "issues": issues_p1
+            "issues": issues_p1,
+            "nextPageToken": "page2token"
         });
 
-        // Mount page 2 first (more specific), then page 1 as fallback
-        // Page 2: 10 issues (last page)
+        // Page 2: 10 issues, no nextPageToken (last page)
         let issues_p2: Vec<serde_json::Value> = (50..60)
             .map(|i| make_issue_json(&format!("BEE-{i}"), "Open", None))
             .collect();
         let response_p2 = serde_json::json!({
-            "startAt": 50,
-            "maxResults": 50,
             "total": 60,
             "issues": issues_p2
         });
 
         Mock::given(method("GET"))
-            .and(path("/rest/api/3/search"))
-            .and(query_param("startAt", "50"))
+            .and(path("/rest/api/3/search/jql"))
+            .and(query_param("nextPageToken", "page2token"))
             .respond_with(ResponseTemplate::new(200).set_body_json(&response_p2))
             .mount(&server)
             .await;
 
         Mock::given(method("GET"))
-            .and(path("/rest/api/3/search"))
-            .and(query_param("startAt", "0"))
+            .and(path("/rest/api/3/search/jql"))
             .respond_with(ResponseTemplate::new(200).set_body_json(&response_p1))
             .mount(&server)
             .await;
@@ -715,14 +708,12 @@ mod tests {
         let server = MockServer::start().await;
 
         let response = serde_json::json!({
-            "startAt": 0,
-            "maxResults": 50,
             "total": 0,
             "issues": []
         });
 
         Mock::given(method("GET"))
-            .and(path("/rest/api/3/search"))
+            .and(path("/rest/api/3/search/jql"))
             .respond_with(ResponseTemplate::new(200).set_body_json(&response))
             .mount(&server)
             .await;

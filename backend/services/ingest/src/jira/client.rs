@@ -149,30 +149,37 @@ impl JiraClient {
     }
 
     /// Fetch issues via JQL search, returning all pages.
+    ///
+    /// Uses the `/rest/api/3/search/jql` endpoint (the legacy `/rest/api/3/search`
+    /// was removed by Atlassian in August 2025). Pagination is token-based via
+    /// `nextPageToken`.
     pub async fn search_issues(&self, jql: &str) -> Result<Vec<JiraIssue>, JiraClientError> {
         let max_results = 50;
-        let mut start_at: usize = 0;
         let mut all_issues = Vec::new();
         let fields = "summary,status,issuetype,assignee,reporter,priority,labels,created,updated,resolutiondate,customfield_10016,customfield_10020,customfield_10001";
+        let mut next_page_token: Option<String> = None;
 
         loop {
-            let url = format!(
-                "{}/rest/api/3/search?jql={}&startAt={}&maxResults={}&fields={}",
+            let mut url = format!(
+                "{}/rest/api/3/search/jql?jql={}&maxResults={}&fields={}",
                 self.config.base_url,
                 urlencoding::encode(jql),
-                start_at,
                 max_results,
                 fields,
             );
+
+            if let Some(ref token) = next_page_token {
+                url.push_str(&format!("&nextPageToken={}", urlencoding::encode(token)));
+            }
 
             let response: JiraSearchResponse = self.request_with_retry(&url).await?;
             let page_len = response.issues.len();
             all_issues.extend(response.issues);
 
-            if start_at + page_len >= response.total || page_len == 0 {
-                break;
+            match response.next_page_token {
+                Some(token) if page_len > 0 => next_page_token = Some(token),
+                _ => break,
             }
-            start_at += page_len;
         }
 
         Ok(all_issues)
