@@ -7,7 +7,6 @@
 ///   3. Unmatched → chore
 ///
 /// Extend the slices below to cover additional issue types or labels.
-
 /// Jira issue types classified as **bug**.
 pub const BUG_ISSUE_TYPES: &[&str] = &["Bug", "Defect"];
 
