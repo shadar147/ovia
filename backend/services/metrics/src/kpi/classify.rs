@@ -7,11 +7,20 @@
 ///   3. Unmatched → chore
 ///
 /// Extend the slices below to cover additional issue types or labels.
-/// Jira issue types classified as **bug**.
-pub const BUG_ISSUE_TYPES: &[&str] = &["Bug", "Defect"];
+/// Jira issue types classified as **bug** (EN + RU).
+pub const BUG_ISSUE_TYPES: &[&str] = &["Bug", "Defect", "Баг", "Дефект", "Ошибка"];
 
-/// Jira issue types classified as **feature**.
-pub const FEATURE_ISSUE_TYPES: &[&str] = &["Story", "Epic", "New Feature", "Improvement"];
+/// Jira issue types classified as **feature** (EN + RU).
+pub const FEATURE_ISSUE_TYPES: &[&str] = &[
+    "Story",
+    "Epic",
+    "New Feature",
+    "Improvement",
+    "История",
+    "Эпик",
+    "Новая функция",
+    "Улучшение",
+];
 
 /// GitLab MR labels classified as **bug** (case-insensitive match in query).
 pub const BUG_LABELS: &[&str] = &["bug", "defect", "fix", "hotfix"];
@@ -24,15 +33,32 @@ mod tests {
     use super::*;
 
     #[test]
-    fn bug_issue_types_non_empty() {
-        assert!(!BUG_ISSUE_TYPES.is_empty());
+    fn bug_issue_types_contains_en() {
         assert!(BUG_ISSUE_TYPES.contains(&"Bug"));
+        assert!(BUG_ISSUE_TYPES.contains(&"Defect"));
     }
 
     #[test]
-    fn feature_issue_types_non_empty() {
-        assert!(!FEATURE_ISSUE_TYPES.is_empty());
+    fn bug_issue_types_contains_ru() {
+        assert!(BUG_ISSUE_TYPES.contains(&"Баг"));
+        assert!(BUG_ISSUE_TYPES.contains(&"Дефект"));
+        assert!(BUG_ISSUE_TYPES.contains(&"Ошибка"));
+    }
+
+    #[test]
+    fn feature_issue_types_contains_en() {
         assert!(FEATURE_ISSUE_TYPES.contains(&"Story"));
+        assert!(FEATURE_ISSUE_TYPES.contains(&"Epic"));
+        assert!(FEATURE_ISSUE_TYPES.contains(&"New Feature"));
+        assert!(FEATURE_ISSUE_TYPES.contains(&"Improvement"));
+    }
+
+    #[test]
+    fn feature_issue_types_contains_ru() {
+        assert!(FEATURE_ISSUE_TYPES.contains(&"История"));
+        assert!(FEATURE_ISSUE_TYPES.contains(&"Эпик"));
+        assert!(FEATURE_ISSUE_TYPES.contains(&"Новая функция"));
+        assert!(FEATURE_ISSUE_TYPES.contains(&"Улучшение"));
     }
 
     #[test]
@@ -65,5 +91,14 @@ mod tests {
                 "{l} appears in both bug and feature labels"
             );
         }
+    }
+
+    /// "Задача" is not in bug or feature lists → should fall through to chore.
+    #[test]
+    fn task_type_is_chore() {
+        assert!(!BUG_ISSUE_TYPES.contains(&"Задача"));
+        assert!(!FEATURE_ISSUE_TYPES.contains(&"Задача"));
+        assert!(!BUG_ISSUE_TYPES.contains(&"Task"));
+        assert!(!FEATURE_ISSUE_TYPES.contains(&"Task"));
     }
 }
