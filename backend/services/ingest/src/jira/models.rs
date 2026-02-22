@@ -89,6 +89,12 @@ pub struct JiraIssueType {
 #[serde(rename_all = "camelCase")]
 pub struct JiraUserRef {
     pub account_id: String,
+    #[serde(default)]
+    pub display_name: Option<String>,
+    #[serde(default)]
+    pub email_address: Option<String>,
+    #[serde(default)]
+    pub account_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

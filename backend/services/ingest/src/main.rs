@@ -71,10 +71,17 @@ async fn main() {
             let issue_client = JiraClient::new(JiraClientConfig::from_env().unwrap().unwrap())
                 .expect("jira client for issue sync");
             let jira_repo = ovia_db::jira::pg_repository::PgJiraRepository::new(pool.clone());
+            let issue_identity_repo =
+                ovia_db::identity::pg_repository::PgIdentityRepository::new(pool.clone());
             let issue_sync_repo = ovia_db::sync::pg_repository::PgSyncRepository::new(pool.clone());
 
-            let issue_syncer =
-                JiraIssueSyncer::new(org_id, issue_client, jira_repo, issue_sync_repo);
+            let issue_syncer = JiraIssueSyncer::new(
+                org_id,
+                issue_client,
+                jira_repo,
+                issue_identity_repo,
+                issue_sync_repo,
+            );
 
             match issue_syncer.sync().await {
                 Ok(result) => {

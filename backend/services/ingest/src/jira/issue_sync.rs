@@ -1,13 +1,16 @@
 use async_trait::async_trait;
 use chrono::{Duration, Utc};
+use std::collections::HashMap;
 use uuid::Uuid;
 
+use ovia_db::identity::models::Identity;
+use ovia_db::identity::repositories::IdentityRepository;
 use ovia_db::jira::models::{JiraIssue as DbJiraIssue, JiraIssueTransition};
 use ovia_db::jira::pg_repository::PgJiraRepository;
 use ovia_db::sync::repositories::SyncWatermarkRepository;
 
 use super::client::JiraClient;
-use super::models::{JiraChangelogEntry, JiraIssue as ApiIssue};
+use super::models::{JiraChangelogEntry, JiraIssue as ApiIssue, JiraUserRef};
 use super::query::build_issue_search_jql;
 use crate::connector::{Connector, SyncResult};
 
@@ -78,35 +81,73 @@ fn changelog_to_transitions(
     transitions
 }
 
-pub struct JiraIssueSyncer<S> {
+/// Extract unique user refs from issue assignees/reporters for identity ingest.
+fn collect_user_refs(issues: &[ApiIssue]) -> HashMap<String, &JiraUserRef> {
+    let mut users: HashMap<String, &JiraUserRef> = HashMap::new();
+    for issue in issues {
+        if let Some(ref a) = issue.fields.assignee {
+            users.entry(a.account_id.clone()).or_insert(a);
+        }
+        if let Some(ref r) = issue.fields.reporter {
+            users.entry(r.account_id.clone()).or_insert(r);
+        }
+    }
+    users
+}
+
+/// Convert a JiraUserRef (from issue fields) to an Identity.
+fn user_ref_to_identity(org_id: Uuid, user: &JiraUserRef) -> Identity {
+    let now = Utc::now();
+    let is_service = matches!(user.account_type.as_deref(), Some("app"));
+    Identity {
+        id: Uuid::new_v4(),
+        org_id,
+        source: "jira".to_string(),
+        external_id: Some(user.account_id.clone()),
+        username: None,
+        email: user.email_address.clone(),
+        display_name: user.display_name.clone(),
+        is_service_account: is_service,
+        first_seen_at: Some(now),
+        last_seen_at: Some(now),
+        raw_ref: serde_json::to_value(user).ok(),
+    }
+}
+
+pub struct JiraIssueSyncer<I, S> {
     org_id: Uuid,
     client: JiraClient,
     jira_repo: PgJiraRepository,
+    identity_repo: I,
     sync_repo: S,
 }
 
-impl<S> JiraIssueSyncer<S>
+impl<I, S> JiraIssueSyncer<I, S>
 where
+    I: IdentityRepository,
     S: SyncWatermarkRepository,
 {
     pub fn new(
         org_id: Uuid,
         client: JiraClient,
         jira_repo: PgJiraRepository,
+        identity_repo: I,
         sync_repo: S,
     ) -> Self {
         Self {
             org_id,
             client,
             jira_repo,
+            identity_repo,
             sync_repo,
         }
     }
 }
 
 #[async_trait]
-impl<S> Connector for JiraIssueSyncer<S>
+impl<I, S> Connector for JiraIssueSyncer<I, S>
 where
+    I: IdentityRepository,
     S: SyncWatermarkRepository,
 {
     fn source_name(&self) -> &str {
@@ -234,6 +275,30 @@ where
             }
         }
 
+        // ── Extract identities from issue assignees/reporters ──────
+        let user_refs = collect_user_refs(&issues);
+        let mut identity_upserted: usize = 0;
+        for user in user_refs.values() {
+            let identity = user_ref_to_identity(self.org_id, user);
+            match self.identity_repo.upsert_by_external_id(identity).await {
+                Ok(_) => identity_upserted += 1,
+                Err(e) => {
+                    tracing::warn!(
+                        account_id = %user.account_id,
+                        error = %e,
+                        "failed to upsert identity from issue user ref"
+                    );
+                }
+            }
+        }
+
+        if identity_upserted > 0 {
+            tracing::info!(
+                count = identity_upserted,
+                "upserted identities from issue assignees/reporters"
+            );
+        }
+
         // Mark completed with current timestamp as cursor for next incremental sync
         let cursor = Utc::now().to_rfc3339();
         self.sync_repo
@@ -289,8 +354,18 @@ mod tests {
                 "summary": format!("Test issue {key}"),
                 "status": { "name": status },
                 "issuetype": { "name": "Story" },
-                "assignee": { "accountId": "user-1" },
-                "reporter": { "accountId": "user-2" },
+                "assignee": {
+                    "accountId": "user-1",
+                    "displayName": "Alice Dev",
+                    "emailAddress": "alice@example.com",
+                    "accountType": "atlassian"
+                },
+                "reporter": {
+                    "accountId": "user-2",
+                    "displayName": "Bob PM",
+                    "emailAddress": "bob@example.com",
+                    "accountType": "atlassian"
+                },
                 "priority": { "name": "Medium" },
                 "labels": ["backend"],
                 "created": "2026-02-10T10:00:00.000Z",
@@ -677,5 +752,108 @@ mod tests {
         let client = JiraClient::new(test_client_config(&server.uri())).unwrap();
         let entries = client.fetch_issue_changelog("BEE-1").await.unwrap();
         assert!(entries.is_empty());
+    }
+
+    // ── Identity extraction tests ────────────────────────────────
+
+    #[test]
+    fn collect_user_refs_deduplicates_by_account_id() {
+        let issues: Vec<ApiIssue> = serde_json::from_value(serde_json::json!([
+            {
+                "key": "BEE-1",
+                "fields": {
+                    "summary": "A",
+                    "status": { "name": "Open" },
+                    "labels": [],
+                    "assignee": { "accountId": "u1", "displayName": "Alice" },
+                    "reporter": { "accountId": "u2", "displayName": "Bob" }
+                }
+            },
+            {
+                "key": "BEE-2",
+                "fields": {
+                    "summary": "B",
+                    "status": { "name": "Open" },
+                    "labels": [],
+                    "assignee": { "accountId": "u1", "displayName": "Alice" },
+                    "reporter": { "accountId": "u3", "displayName": "Carol" }
+                }
+            }
+        ]))
+        .unwrap();
+
+        let refs = collect_user_refs(&issues);
+        assert_eq!(refs.len(), 3); // u1, u2, u3 (u1 deduplicated)
+        assert!(refs.contains_key("u1"));
+        assert!(refs.contains_key("u2"));
+        assert!(refs.contains_key("u3"));
+    }
+
+    #[test]
+    fn collect_user_refs_handles_null_assignee_and_reporter() {
+        let issues: Vec<ApiIssue> = serde_json::from_value(serde_json::json!([
+            {
+                "key": "BEE-1",
+                "fields": {
+                    "summary": "No users",
+                    "status": { "name": "Open" },
+                    "labels": []
+                }
+            }
+        ]))
+        .unwrap();
+
+        let refs = collect_user_refs(&issues);
+        assert!(refs.is_empty());
+    }
+
+    #[test]
+    fn user_ref_to_identity_sets_source_jira() {
+        let user_ref = JiraUserRef {
+            account_id: "abc-123".to_string(),
+            display_name: Some("Test User".to_string()),
+            email_address: Some("test@example.com".to_string()),
+            account_type: Some("atlassian".to_string()),
+        };
+
+        let org_id = Uuid::new_v4();
+        let identity = user_ref_to_identity(org_id, &user_ref);
+
+        assert_eq!(identity.source, "jira");
+        assert_eq!(identity.external_id.as_deref(), Some("abc-123"));
+        assert_eq!(identity.display_name.as_deref(), Some("Test User"));
+        assert_eq!(identity.email.as_deref(), Some("test@example.com"));
+        assert!(!identity.is_service_account);
+        assert_eq!(identity.org_id, org_id);
+        assert!(identity.raw_ref.is_some());
+    }
+
+    #[test]
+    fn user_ref_to_identity_marks_app_as_service_account() {
+        let user_ref = JiraUserRef {
+            account_id: "app-bot".to_string(),
+            display_name: Some("Bot".to_string()),
+            email_address: None,
+            account_type: Some("app".to_string()),
+        };
+
+        let identity = user_ref_to_identity(Uuid::new_v4(), &user_ref);
+        assert!(identity.is_service_account);
+    }
+
+    #[test]
+    fn user_ref_to_identity_handles_missing_fields() {
+        let user_ref = JiraUserRef {
+            account_id: "min".to_string(),
+            display_name: None,
+            email_address: None,
+            account_type: None,
+        };
+
+        let identity = user_ref_to_identity(Uuid::new_v4(), &user_ref);
+        assert_eq!(identity.external_id.as_deref(), Some("min"));
+        assert!(identity.display_name.is_none());
+        assert!(identity.email.is_none());
+        assert!(!identity.is_service_account);
     }
 }
