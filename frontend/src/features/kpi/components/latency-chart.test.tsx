@@ -51,4 +51,23 @@ describe("LatencyChart", () => {
     render(<LatencyChart history={[nullLatency]} />);
     expect(screen.getByTestId("echarts-mock")).toBeInTheDocument();
   });
+
+  it("renders unique X axis labels from pre-deduplicated input", () => {
+    const week1: KpiSnapshot = {
+      ...snapshot,
+      id: "w1",
+      period_start: "2026-01-27",
+    };
+    const week2: KpiSnapshot = {
+      ...snapshot,
+      id: "w2",
+      period_start: "2026-02-03",
+    };
+    render(<LatencyChart history={[week2, week1]} />);
+    const el = screen.getByTestId("echarts-mock");
+    const option = JSON.parse(el.getAttribute("data-option")!);
+    expect(option.xAxis.data).toHaveLength(2);
+    expect(option.xAxis.data[0]).toBe("Jan 27");
+    expect(option.xAxis.data[1]).toBe("Feb 3");
+  });
 });

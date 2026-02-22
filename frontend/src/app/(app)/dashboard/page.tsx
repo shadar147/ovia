@@ -11,6 +11,7 @@ import { ThroughputBreakdown } from "@/features/kpi/components/throughput-breakd
 import { RiskTable } from "@/features/kpi/components/risk-table";
 import { DashboardSkeleton } from "@/features/kpi/components/dashboard-skeleton";
 import { useTranslation, formatDateRange } from "@/i18n";
+import { deduplicateHistory } from "@/features/kpi/components/chart-utils";
 
 export default function DashboardPage() {
   const latest = useKpiLatest();
@@ -49,9 +50,7 @@ export default function DashboardPage() {
     );
   }
 
-  const sortedHistory = [...history.data].sort(
-    (a, b) => new Date(a.period_start).getTime() - new Date(b.period_start).getTime(),
-  );
+  const sortedHistory = deduplicateHistory(history.data);
   const previous = sortedHistory.length >= 2 ? sortedHistory[sortedHistory.length - 2] : undefined;
 
   const periodLabel = formatDateRange(latest.data.period_start, latest.data.period_end, locale);

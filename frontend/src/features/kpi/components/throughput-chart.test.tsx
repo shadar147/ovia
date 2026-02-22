@@ -41,4 +41,26 @@ describe("ThroughputChart", () => {
     expect(screen.getByText("Not enough history data yet")).toBeInTheDocument();
     expect(screen.queryByTestId("echarts-mock")).not.toBeInTheDocument();
   });
+
+  it("renders correctly with pre-deduplicated history (no duplicate dates)", () => {
+    const week1: KpiSnapshot = {
+      ...snapshot,
+      id: "w1",
+      period_start: "2026-02-03",
+      period_end: "2026-02-09",
+    };
+    const week2: KpiSnapshot = {
+      ...snapshot,
+      id: "w2",
+      period_start: "2026-02-10",
+      period_end: "2026-02-16",
+    };
+    render(<ThroughputChart history={[week2, week1]} />);
+    const el = screen.getByTestId("echarts-mock");
+    const option = JSON.parse(el.getAttribute("data-option")!);
+    // X axis labels should be sorted and unique
+    expect(option.xAxis.data).toHaveLength(2);
+    expect(option.xAxis.data[0]).toBe("Feb 3");
+    expect(option.xAxis.data[1]).toBe("Feb 10");
+  });
 });
