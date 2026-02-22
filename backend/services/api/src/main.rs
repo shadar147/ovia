@@ -840,8 +840,10 @@ mod tests {
         sqlx::query(
             "insert into kpi_snapshots (id, org_id, period_start, period_end, \
              delivery_health_score, release_risk_score, throughput_total, throughput_bugs, \
-             throughput_features, throughput_chores, review_latency_median_hours) \
-             values ($1, $2, '2026-02-01', '2026-02-14', 75.5, 30.0, 42, 10, 25, 7, 4.5)",
+             throughput_features, throughput_chores, review_latency_median_hours, \
+             blocker_count, spillover_rate, cycle_time_p50_hours, cycle_time_p90_hours) \
+             values ($1, $2, '2026-02-01', '2026-02-14', 75.5, 30.0, 42, 10, 25, 7, 4.5, \
+             3, 0.25, 36.0, 72.0)",
         )
         .bind(id)
         .bind(org_id)
@@ -873,8 +875,13 @@ mod tests {
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
         let body = read_body(resp).await;
-        assert!(body["data"]["throughput_total"].as_i64().is_some());
-        assert_eq!(body["data"]["throughput_total"], 42);
+        let data = &body["data"];
+        assert_eq!(data["throughput_total"], 42);
+        // Jira metrics present in response
+        assert_eq!(data["blocker_count"], 3);
+        assert!((data["spillover_rate"].as_f64().unwrap() - 0.25).abs() < 0.01);
+        assert!((data["cycle_time_p50_hours"].as_f64().unwrap() - 36.0).abs() < 0.1);
+        assert!((data["cycle_time_p90_hours"].as_f64().unwrap() - 72.0).abs() < 0.1);
     }
 
     #[tokio::test]
@@ -923,6 +930,88 @@ mod tests {
         let body = read_body(resp).await;
         assert_eq!(body["count"], 1);
         assert_eq!(body["data"].as_array().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn kpi_response_contract_includes_all_fields() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_kpi_tables(&pool).await;
+        let org = Uuid::new_v4();
+        insert_kpi_snapshot(&pool, org).await;
+
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::get("/team/kpi")
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = read_body(resp).await;
+        let data = &body["data"];
+
+        // All KPI fields must be present in the contract
+        let required_fields = [
+            "id",
+            "org_id",
+            "period_start",
+            "period_end",
+            "delivery_health_score",
+            "release_risk_score",
+            "throughput_total",
+            "throughput_bugs",
+            "throughput_features",
+            "throughput_chores",
+            "review_latency_median_hours",
+            "review_latency_p90_hours",
+            "blocker_count",
+            "spillover_rate",
+            "cycle_time_p50_hours",
+            "cycle_time_p90_hours",
+            "computed_at",
+            "created_at",
+        ];
+        for field in &required_fields {
+            assert!(
+                !data[field].is_null() || data.get(field).is_some(),
+                "field '{}' missing from KPI response",
+                field
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn kpi_history_includes_jira_metrics() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_kpi_tables(&pool).await;
+        let org = Uuid::new_v4();
+        insert_kpi_snapshot(&pool, org).await;
+
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::get("/team/kpi/history")
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = read_body(resp).await;
+        let item = &body["data"][0];
+        assert_eq!(item["blocker_count"], 3);
+        assert!(item["spillover_rate"].as_f64().is_some());
+        assert!(item["cycle_time_p50_hours"].as_f64().is_some());
     }
 
     #[tokio::test]
