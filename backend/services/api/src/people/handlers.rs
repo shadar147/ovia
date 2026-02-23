@@ -4,14 +4,17 @@ use axum::response::IntoResponse;
 use axum::Json;
 use ovia_common::error::OviaError;
 use ovia_db::identity::models::{Person, PersonFilter};
-use ovia_db::identity::repositories::PersonRepository;
+use ovia_db::identity::repositories::{IdentityRepository, PersonRepository};
 use sqlx::Row;
 use uuid::Uuid;
 
 use crate::error::ApiError;
 use crate::extractors::OrgId;
 use crate::people::requests::{CreatePersonRequest, LinkIdentityRequest, UpdatePersonRequest};
-use crate::people::responses::{LinkResponse, ListPeopleResponse, PersonResponse};
+use crate::people::responses::{
+    LinkResponse, LinkedIdentitiesResponse, LinkedIdentityResponse, ListPeopleResponse,
+    PersonResponse,
+};
 use crate::AppState;
 
 fn validate_email(email: &str) -> Result<(), OviaError> {
@@ -220,7 +223,7 @@ pub async fn link_identity(
     Path(person_id): Path<Uuid>,
     Json(body): Json<LinkIdentityRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    // Verify person exists
+    // Verify person exists in this org
     let _person = PersonRepository::get_by_id(&state.identity_repo, org, person_id)
         .await?
         .ok_or_else(|| {
@@ -229,37 +232,87 @@ pub async fn link_identity(
             )))
         })?;
 
-    let link_status = body.status.as_deref().unwrap_or("verified");
-    let confidence = body.confidence.unwrap_or(1.0);
+    // Verify identity exists in same org
+    let _identity = IdentityRepository::get_by_id(&state.identity_repo, org, body.identity_id)
+        .await?
+        .ok_or_else(|| {
+            ApiError(OviaError::NotFound(format!(
+                "identity not found: {}",
+                body.identity_id
+            )))
+        })?;
+
+    let pool = state.identity_repo.pool();
+
+    // Check if identity is already actively linked to another person
+    let existing = sqlx::query(
+        "select person_id from person_identity_links \
+         where org_id = $1 and identity_id = $2 and valid_to is null \
+         limit 1",
+    )
+    .bind(org)
+    .bind(body.identity_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| OviaError::Database(e.to_string()))?;
+
+    if let Some(row) = existing {
+        let existing_person_id: Uuid = row.get("person_id");
+        if existing_person_id == person_id {
+            return Err(ApiError(OviaError::Validation(
+                "identity is already linked to this person".to_string(),
+            )));
+        }
+        return Err(ApiError(OviaError::Conflict(format!(
+            "identity {} is already linked to person {existing_person_id}; use remap to reassign",
+            body.identity_id
+        ))));
+    }
+
     let link_id = Uuid::new_v4();
     let now = chrono::Utc::now();
 
-    let pool = state.identity_repo.pool();
+    // Use a transaction to insert link + audit event atomically
+    let mut tx = pool
+        .begin()
+        .await
+        .map_err(|e| OviaError::Database(e.to_string()))?;
+
     let row = sqlx::query(
         "insert into person_identity_links \
-         (id, org_id, person_id, identity_id, status, confidence, valid_from, verified_at, created_at, updated_at) \
-         values ($1, $2, $3, $4, $5, $6, $7, $7, $7, $7) \
+         (id, org_id, person_id, identity_id, status, confidence, valid_from, verified_by, verified_at, created_at, updated_at) \
+         values ($1, $2, $3, $4, 'verified', 1.0, $5, 'manual', $5, $5, $5) \
          returning id, person_id, identity_id, status, confidence::float8 as confidence",
     )
     .bind(link_id)
     .bind(org)
     .bind(person_id)
     .bind(body.identity_id)
-    .bind(link_status)
-    .bind(confidence)
     .bind(now)
-    .fetch_one(pool)
+    .fetch_one(&mut *tx)
     .await
-    .map_err(|e| {
-        let msg = e.to_string();
-        if msg.contains("duplicate key") || msg.contains("unique constraint") {
-            OviaError::Validation("identity is already linked to this person".to_string())
-        } else if msg.contains("violates foreign key") {
-            OviaError::NotFound(format!("identity not found: {}", body.identity_id))
-        } else {
-            OviaError::Database(msg)
-        }
-    })?;
+    .map_err(|e| OviaError::Database(e.to_string()))?;
+
+    // Emit audit event
+    sqlx::query(
+        "insert into identity_events (id, org_id, link_id, action, actor, payload, created_at) \
+         values ($1, $2, $3, 'manual_link', 'manual', $4, $5)",
+    )
+    .bind(Uuid::new_v4())
+    .bind(org)
+    .bind(link_id)
+    .bind(serde_json::json!({
+        "person_id": person_id,
+        "identity_id": body.identity_id,
+    }))
+    .bind(now)
+    .execute(&mut *tx)
+    .await
+    .map_err(|e| OviaError::Database(e.to_string()))?;
+
+    tx.commit()
+        .await
+        .map_err(|e| OviaError::Database(e.to_string()))?;
 
     let resp = LinkResponse {
         id: row.get("id"),
@@ -270,4 +323,113 @@ pub async fn link_identity(
     };
 
     Ok((StatusCode::CREATED, Json(resp)))
+}
+
+pub async fn unlink_identity(
+    State(state): State<AppState>,
+    OrgId(org): OrgId,
+    Path((person_id, identity_id)): Path<(Uuid, Uuid)>,
+) -> Result<StatusCode, ApiError> {
+    let pool = state.identity_repo.pool();
+    let now = chrono::Utc::now();
+
+    let mut tx = pool
+        .begin()
+        .await
+        .map_err(|e| OviaError::Database(e.to_string()))?;
+
+    let row = sqlx::query(
+        "update person_identity_links \
+         set valid_to = $1, updated_at = $1 \
+         where org_id = $2 and person_id = $3 and identity_id = $4 and valid_to is null \
+         returning id",
+    )
+    .bind(now)
+    .bind(org)
+    .bind(person_id)
+    .bind(identity_id)
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(|e| OviaError::Database(e.to_string()))?;
+
+    let link_id: Uuid = match row {
+        Some(r) => r.get("id"),
+        None => {
+            return Err(ApiError(OviaError::NotFound(format!(
+                "active link not found for person {person_id} and identity {identity_id}"
+            ))));
+        }
+    };
+
+    // Emit audit event
+    sqlx::query(
+        "insert into identity_events (id, org_id, link_id, action, actor, payload, created_at) \
+         values ($1, $2, $3, 'manual_unlink', 'manual', $4, $5)",
+    )
+    .bind(Uuid::new_v4())
+    .bind(org)
+    .bind(link_id)
+    .bind(serde_json::json!({
+        "person_id": person_id,
+        "identity_id": identity_id,
+    }))
+    .bind(now)
+    .execute(&mut *tx)
+    .await
+    .map_err(|e| OviaError::Database(e.to_string()))?;
+
+    tx.commit()
+        .await
+        .map_err(|e| OviaError::Database(e.to_string()))?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn list_person_identities(
+    State(state): State<AppState>,
+    OrgId(org): OrgId,
+    Path(person_id): Path<Uuid>,
+) -> Result<Json<LinkedIdentitiesResponse>, ApiError> {
+    // Verify person exists
+    let _person = PersonRepository::get_by_id(&state.identity_repo, org, person_id)
+        .await?
+        .ok_or_else(|| {
+            ApiError(OviaError::NotFound(format!(
+                "person not found: {person_id}"
+            )))
+        })?;
+
+    let pool = state.identity_repo.pool();
+    let rows = sqlx::query(
+        "select pil.id as link_id, pil.identity_id, pil.status, \
+                pil.confidence::float8 as confidence, pil.created_at as linked_at, \
+                i.source, i.username, i.email, i.display_name \
+         from person_identity_links pil \
+         join identities i on pil.identity_id = i.id \
+         where pil.org_id = $1 and pil.person_id = $2 and pil.valid_to is null \
+         order by pil.created_at desc",
+    )
+    .bind(org)
+    .bind(person_id)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| OviaError::Database(e.to_string()))?;
+
+    let data: Vec<LinkedIdentityResponse> = rows
+        .into_iter()
+        .map(|r| LinkedIdentityResponse {
+            link_id: r.get("link_id"),
+            identity_id: r.get("identity_id"),
+            source: r.get("source"),
+            username: r.get("username"),
+            email: r.get("email"),
+            display_name: r.get("display_name"),
+            status: r.get("status"),
+            confidence: r.get("confidence"),
+            linked_at: r.get("linked_at"),
+        })
+        .collect();
+
+    let count = data.len();
+    Ok(Json(LinkedIdentitiesResponse { data, count }))
 }

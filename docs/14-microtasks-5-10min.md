@@ -280,17 +280,17 @@ Rule: each task should be completable in one focused sprint (<=10 min), with a c
 - [x] MT-6001-19 Update delivery backlog status to `done`.
 
 ## OVIA-6002 Manual Identity Linking API — Backend (decomposed)
-- [ ] MT-6002-01 Implement `POST /team/people/:id/identities` handler — validate person + identity exist, same org, not already linked.
-- [ ] MT-6002-02 Create `person_identity_link` with `status=verified`, `confidence=1.0`, `verified_by='manual'` in handler logic.
-- [ ] MT-6002-03 Emit `identity_event` with `action=manual_link` on successful link.
-- [ ] MT-6002-04 Implement `DELETE /team/people/:id/identities/:identity_id` handler — set `valid_to=now()`, emit `manual_unlink` event.
-- [ ] MT-6002-05 Implement `GET /team/people/:id/identities` handler — list linked identities with source, username, email, status, linked_at.
-- [ ] MT-6002-06 Add validation: reject link if identity already linked to another person (return 409 with remap hint).
-- [ ] MT-6002-07 Register `/team/people/:id/identities` routes in API router.
-- [ ] MT-6002-08 Add 4 handler tests: link (201), unlink (204), list identities (200), link-already-linked (409).
-- [ ] MT-6002-09 Add 2 integration tests: audit event emission check, concurrent link conflict.
-- [ ] MT-6002-10 Run `cargo sqlx prepare --workspace`, `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --all` — all green.
-- [ ] MT-6002-11 Update delivery backlog status to `done`.
+- [x] MT-6002-01 Implement `POST /team/people/:id/identities` handler — validate person + identity exist, same org, not already linked.
+- [x] MT-6002-02 Create `person_identity_link` with `status=verified`, `confidence=1.0`, `verified_by='manual'` in handler logic.
+- [x] MT-6002-03 Emit `identity_event` with `action=manual_link` on successful link.
+- [x] MT-6002-04 Implement `DELETE /team/people/:id/identities/:identity_id` handler — set `valid_to=now()`, emit `manual_unlink` event.
+- [x] MT-6002-05 Implement `GET /team/people/:id/identities` handler — list linked identities with source, username, email, status, linked_at.
+- [x] MT-6002-06 Add validation: reject link if identity already linked to another person (return 409 with remap hint).
+- [x] MT-6002-07 Register `/team/people/:id/identities` routes in API router.
+- [x] MT-6002-08 Add 4 handler tests: link (201), unlink (204), list identities (200), link-already-linked (409).
+- [x] MT-6002-09 Add 2 integration tests: audit event emission check, concurrent link conflict.
+- [x] MT-6002-10 Run `cargo sqlx prepare --workspace`, `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --all` — all green.
+- [x] MT-6002-11 Update delivery backlog status to `done`.
 
 ## OVIA-6003 People List Page — Frontend (decomposed)
 - [ ] MT-6003-01 Create route `/team/people` — add `app/(app)/team/people/page.tsx`.

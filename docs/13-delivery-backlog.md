@@ -432,7 +432,7 @@ Status legend: `todo | in_progress | review | done | blocked`
   - API: 5 handler tests (list, get, create, update, delete) + 3 error cases (404, duplicate email, validation).
 
 ### OVIA-6002 Manual Identity Linking API (Backend)
-- Status: `todo`
+- Status: `done`
 - Priority: P0
 - Owner: Claude
 - Depends on: OVIA-6001, OVIA-1003

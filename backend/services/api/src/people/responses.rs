@@ -31,3 +31,22 @@ pub struct LinkResponse {
     pub status: String,
     pub confidence: f64,
 }
+
+#[derive(Debug, Serialize)]
+pub struct LinkedIdentityResponse {
+    pub link_id: Uuid,
+    pub identity_id: Uuid,
+    pub source: String,
+    pub username: Option<String>,
+    pub email: Option<String>,
+    pub display_name: Option<String>,
+    pub status: String,
+    pub confidence: f64,
+    pub linked_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LinkedIdentitiesResponse {
+    pub data: Vec<LinkedIdentityResponse>,
+    pub count: usize,
+}

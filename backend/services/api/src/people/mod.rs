@@ -14,5 +14,12 @@ pub fn router() -> Router<AppState> {
         .route("/team/people/{id}", get(handlers::get_person))
         .route("/team/people/{id}", put(handlers::update_person))
         .route("/team/people/{id}", delete(handlers::delete_person))
-        .route("/team/people/{id}/link", post(handlers::link_identity))
+        .route(
+            "/team/people/{id}/identities",
+            get(handlers::list_person_identities).post(handlers::link_identity),
+        )
+        .route(
+            "/team/people/{id}/identities/{identity_id}",
+            delete(handlers::unlink_identity),
+        )
 }

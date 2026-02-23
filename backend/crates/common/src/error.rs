@@ -14,6 +14,9 @@ pub enum OviaError {
     #[error("validation error: {0}")]
     Validation(String),
 
+    #[error("conflict: {0}")]
+    Conflict(String),
+
     #[error("internal error: {0}")]
     Internal(String),
 }

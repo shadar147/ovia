@@ -86,6 +86,7 @@ mod tests {
             org_id: Uuid::new_v4(),
             display_name: display_name.to_string(),
             primary_email: email.map(|s| s.to_string()),
+            avatar_url: None,
             team: team.map(|s| s.to_string()),
             role: None,
             status: "active".to_string(),

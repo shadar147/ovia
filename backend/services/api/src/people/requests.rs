@@ -23,6 +23,4 @@ pub struct UpdatePersonRequest {
 #[derive(Debug, Deserialize)]
 pub struct LinkIdentityRequest {
     pub identity_id: Uuid,
-    pub status: Option<String>,
-    pub confidence: Option<f64>,
 }

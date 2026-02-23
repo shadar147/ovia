@@ -16,6 +16,7 @@ impl IntoResponse for ApiError {
         let (status, message) = match &self.0 {
             OviaError::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
             OviaError::Validation(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
+            OviaError::Conflict(msg) => (StatusCode::CONFLICT, msg.clone()),
             other => (StatusCode::INTERNAL_SERVER_ERROR, other.to_string()),
         };
 

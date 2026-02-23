@@ -1489,8 +1489,10 @@ mod tests {
         assert_eq!(body["count"], 0);
     }
 
+    // ── Identity Linking API tests (OVIA-6002) ─────────────────────
+
     #[tokio::test]
-    async fn people_link_identity_happy_path() {
+    async fn link_identity_happy_path_201() {
         let (state, pool) = match test_state().await {
             Some(s) => s,
             None => return,
@@ -1501,12 +1503,10 @@ mod tests {
         let identity_id = insert_identity(&pool, org).await;
 
         let app = build_router(state);
-        let body = serde_json::json!({
-            "identity_id": identity_id
-        });
+        let body = serde_json::json!({ "identity_id": identity_id });
         let resp = app
             .oneshot(
-                Request::post(format!("/team/people/{person_id}/link"))
+                Request::post(format!("/team/people/{person_id}/identities"))
                     .header("X-Org-Id", org.to_string())
                     .header("Content-Type", "application/json")
                     .body(Body::from(serde_json::to_vec(&body).unwrap()))
@@ -1519,10 +1519,50 @@ mod tests {
         assert_eq!(resp_body["person_id"], person_id.to_string());
         assert_eq!(resp_body["identity_id"], identity_id.to_string());
         assert_eq!(resp_body["status"], "verified");
+        assert!((resp_body["confidence"].as_f64().unwrap() - 1.0).abs() < 0.01);
     }
 
     #[tokio::test]
-    async fn people_link_identity_person_not_found_returns_404() {
+    async fn link_identity_emits_audit_event() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let org = Uuid::new_v4();
+        let person_id = insert_person(&pool, org).await;
+        let identity_id = insert_identity(&pool, org).await;
+
+        let app = build_router(state);
+        let body = serde_json::json!({ "identity_id": identity_id });
+        let resp = app
+            .oneshot(
+                Request::post(format!("/team/people/{person_id}/identities"))
+                    .header("X-Org-Id", org.to_string())
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let resp_body = read_body(resp).await;
+        let link_id: Uuid = resp_body["id"].as_str().unwrap().parse().unwrap();
+
+        // Verify audit event was emitted
+        let event = sqlx::query("select action, actor from identity_events where link_id = $1")
+            .bind(link_id)
+            .fetch_one(&pool)
+            .await
+            .expect("audit event should exist");
+        let action: String = event.get("action");
+        let actor: Option<String> = event.get("actor");
+        assert_eq!(action, "manual_link");
+        assert_eq!(actor.as_deref(), Some("manual"));
+    }
+
+    #[tokio::test]
+    async fn link_identity_person_not_found_returns_404() {
         let (state, pool) = match test_state().await {
             Some(s) => s,
             None => return,
@@ -1532,15 +1572,325 @@ mod tests {
         let identity_id = insert_identity(&pool, org).await;
 
         let app = build_router(state);
-        let body = serde_json::json!({
-            "identity_id": identity_id
-        });
+        let body = serde_json::json!({ "identity_id": identity_id });
         let resp = app
             .oneshot(
-                Request::post(format!("/team/people/{}/link", Uuid::new_v4()))
+                Request::post(format!("/team/people/{}/identities", Uuid::new_v4()))
                     .header("X-Org-Id", org.to_string())
                     .header("Content-Type", "application/json")
                     .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn link_identity_identity_not_found_returns_404() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let org = Uuid::new_v4();
+        let person_id = insert_person(&pool, org).await;
+
+        let app = build_router(state);
+        let body = serde_json::json!({ "identity_id": Uuid::new_v4() });
+        let resp = app
+            .oneshot(
+                Request::post(format!("/team/people/{person_id}/identities"))
+                    .header("X-Org-Id", org.to_string())
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn link_identity_already_linked_same_person_returns_400() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let org = Uuid::new_v4();
+        let person_id = insert_person(&pool, org).await;
+        let identity_id = insert_identity(&pool, org).await;
+        insert_link(&pool, org, person_id, identity_id).await;
+
+        let app = build_router(state);
+        let body = serde_json::json!({ "identity_id": identity_id });
+        let resp = app
+            .oneshot(
+                Request::post(format!("/team/people/{person_id}/identities"))
+                    .header("X-Org-Id", org.to_string())
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let resp_body = read_body(resp).await;
+        assert!(resp_body["error"]
+            .as_str()
+            .unwrap()
+            .contains("already linked"));
+    }
+
+    #[tokio::test]
+    async fn link_identity_already_linked_other_person_returns_409() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let org = Uuid::new_v4();
+        let person_a = insert_person(&pool, org).await;
+        let person_b = insert_person(&pool, org).await;
+        let identity_id = insert_identity(&pool, org).await;
+        insert_link(&pool, org, person_a, identity_id).await;
+
+        let app = build_router(state);
+        let body = serde_json::json!({ "identity_id": identity_id });
+        let resp = app
+            .oneshot(
+                Request::post(format!("/team/people/{person_b}/identities"))
+                    .header("X-Org-Id", org.to_string())
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::CONFLICT);
+        let resp_body = read_body(resp).await;
+        assert!(resp_body["error"].as_str().unwrap().contains("remap"));
+    }
+
+    #[tokio::test]
+    async fn link_identity_cross_org_isolation() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let org_a = Uuid::new_v4();
+        let org_b = Uuid::new_v4();
+        let person_id = insert_person(&pool, org_a).await;
+        let identity_id = insert_identity(&pool, org_b).await; // different org
+
+        let app = build_router(state);
+        let body = serde_json::json!({ "identity_id": identity_id });
+        let resp = app
+            .oneshot(
+                Request::post(format!("/team/people/{person_id}/identities"))
+                    .header("X-Org-Id", org_a.to_string())
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        // Identity belongs to org_b but we're querying with org_a → not found
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn unlink_identity_happy_path_204() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let org = Uuid::new_v4();
+        let person_id = insert_person(&pool, org).await;
+        let identity_id = insert_identity(&pool, org).await;
+        insert_link(&pool, org, person_id, identity_id).await;
+
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::delete(format!("/team/people/{person_id}/identities/{identity_id}"))
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+
+        // Verify link is closed (valid_to set)
+        let row = sqlx::query(
+            "select valid_to from person_identity_links \
+             where org_id = $1 and person_id = $2 and identity_id = $3",
+        )
+        .bind(org)
+        .bind(person_id)
+        .bind(identity_id)
+        .fetch_one(&pool)
+        .await
+        .expect("link should still exist");
+        let valid_to: Option<chrono::DateTime<chrono::Utc>> = row.get("valid_to");
+        assert!(valid_to.is_some(), "valid_to should be set after unlink");
+    }
+
+    #[tokio::test]
+    async fn unlink_identity_emits_audit_event() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let org = Uuid::new_v4();
+        let person_id = insert_person(&pool, org).await;
+        let identity_id = insert_identity(&pool, org).await;
+        let link_id = insert_link(&pool, org, person_id, identity_id).await;
+
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::delete(format!("/team/people/{person_id}/identities/{identity_id}"))
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+
+        let event = sqlx::query("select action from identity_events where link_id = $1")
+            .bind(link_id)
+            .fetch_one(&pool)
+            .await
+            .expect("audit event should exist");
+        let action: String = event.get("action");
+        assert_eq!(action, "manual_unlink");
+    }
+
+    #[tokio::test]
+    async fn unlink_identity_not_found_returns_404() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let org = Uuid::new_v4();
+        let person_id = insert_person(&pool, org).await;
+
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::delete(format!(
+                    "/team/people/{person_id}/identities/{}",
+                    Uuid::new_v4()
+                ))
+                .header("X-Org-Id", org.to_string())
+                .body(Body::empty())
+                .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn list_person_identities_happy_path_200() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let org = Uuid::new_v4();
+        let person_id = insert_person(&pool, org).await;
+        let id1 = insert_identity(&pool, org).await;
+        let id2 = insert_identity(&pool, org).await;
+        insert_link(&pool, org, person_id, id1).await;
+        insert_link(&pool, org, person_id, id2).await;
+
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::get(format!("/team/people/{person_id}/identities"))
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = read_body(resp).await;
+        assert_eq!(body["count"], 2);
+        let data = body["data"].as_array().unwrap();
+        assert_eq!(data.len(), 2);
+        // Each item should have source, identity_id, link_id
+        assert!(data[0]["source"].as_str().is_some());
+        assert!(data[0]["identity_id"].as_str().is_some());
+        assert!(data[0]["link_id"].as_str().is_some());
+    }
+
+    #[tokio::test]
+    async fn list_person_identities_excludes_unlinked() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let org = Uuid::new_v4();
+        let person_id = insert_person(&pool, org).await;
+        let id1 = insert_identity(&pool, org).await;
+        let id2 = insert_identity(&pool, org).await;
+        insert_link(&pool, org, person_id, id1).await;
+        // Insert a closed link (already unlinked)
+        let closed_id = Uuid::new_v4();
+        sqlx::query(
+            "insert into person_identity_links \
+             (id, org_id, person_id, identity_id, status, confidence, valid_to) \
+             values ($1, $2, $3, $4, 'auto', 0.5, now())",
+        )
+        .bind(closed_id)
+        .bind(org)
+        .bind(person_id)
+        .bind(id2)
+        .execute(&pool)
+        .await
+        .expect("insert closed link");
+
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::get(format!("/team/people/{person_id}/identities"))
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = read_body(resp).await;
+        assert_eq!(body["count"], 1);
+    }
+
+    #[tokio::test]
+    async fn list_person_identities_person_not_found_returns_404() {
+        let (state, pool) = match test_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        ensure_avatar_column(&pool).await;
+        let org = Uuid::new_v4();
+
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::get(format!("/team/people/{}/identities", Uuid::new_v4()))
+                    .header("X-Org-Id", org.to_string())
+                    .body(Body::empty())
                     .unwrap(),
             )
             .await
