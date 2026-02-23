@@ -7,6 +7,8 @@ import type {
   LinkedIdentitiesResponse,
   ActivityListResponse,
   ActivityFilter,
+  OrphanIdentitiesResponse,
+  OrphanIdentityFilter,
 } from "@/lib/api/types";
 
 export const peopleApi = {
@@ -50,6 +52,19 @@ export const peopleApi = {
     return api<void>(
       `/team/people/${personId}/identities/${identityId}`,
       { method: "DELETE" },
+    );
+  },
+
+  async searchOrphanIdentities(filter: OrphanIdentityFilter = {}) {
+    const params = new URLSearchParams();
+    if (filter.search) params.set("search", filter.search);
+    if (filter.source) params.set("source", filter.source);
+    if (filter.limit !== undefined) params.set("limit", String(filter.limit));
+    if (filter.offset !== undefined) params.set("offset", String(filter.offset));
+
+    const qs = params.toString();
+    return api<OrphanIdentitiesResponse>(
+      `/team/identities/orphans${qs ? `?${qs}` : ""}`,
     );
   },
 

@@ -500,7 +500,7 @@ Status legend: `todo | in_progress | review | done | blocked`
   - Edit pre-fill test.
 
 ### OVIA-6005 Multi-Identity Mapping UI (Frontend)
-- Status: `todo`
+- Status: `done`
 - Priority: P1
 - Owner: Claude
 - Depends on: OVIA-6002, OVIA-6004

@@ -205,6 +205,33 @@ export interface ActivityFilter {
   offset?: number;
 }
 
+// ── Orphan Identities ──
+
+export interface OrphanIdentityResponse {
+  id: string;
+  source: string;
+  external_id: string | null;
+  username: string | null;
+  email: string | null;
+  display_name: string | null;
+  is_service_account: boolean;
+  first_seen_at: string | null;
+  last_seen_at: string | null;
+}
+
+export interface OrphanIdentitiesResponse {
+  data: OrphanIdentityResponse[];
+  count: number;
+  total: number;
+}
+
+export interface OrphanIdentityFilter {
+  search?: string;
+  source?: string;
+  limit?: number;
+  offset?: number;
+}
+
 export interface AskSession {
   id: string;
   org_id: string;

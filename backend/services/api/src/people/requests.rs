@@ -26,6 +26,14 @@ pub struct LinkIdentityRequest {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct OrphanIdentityFilter {
+    pub search: Option<String>,
+    pub source: Option<String>,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct ActivityFilter {
     pub period: Option<String>,       // 7d, 30d, 90d
     pub source: Option<String>,       // gitlab, jira, identity, all

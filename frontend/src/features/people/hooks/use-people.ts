@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { peopleApi } from "@/features/people/api/client";
 import { peopleKeys } from "@/features/people/api/keys";
-import type { PersonFilter, CreatePersonRequest, ActivityFilter } from "@/lib/api/types";
+import type { PersonFilter, CreatePersonRequest, ActivityFilter, OrphanIdentityFilter } from "@/lib/api/types";
 import { toast } from "sonner";
 import { useTranslation } from "@/i18n";
 
@@ -71,6 +71,14 @@ export function useUnlinkIdentity(personId: string) {
       toast.success(t("person360.identityUnlinked"));
     },
     onError: () => toast.error(t("person360.unlinkFailed")),
+  });
+}
+
+export function useOrphanIdentities(filter: OrphanIdentityFilter = {}) {
+  return useQuery({
+    queryKey: peopleKeys.orphanIdentities(filter),
+    queryFn: () => peopleApi.searchOrphanIdentities(filter),
+    enabled: !!filter.search && filter.search.length >= 2,
   });
 }
 

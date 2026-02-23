@@ -26,4 +26,8 @@ pub fn router() -> Router<AppState> {
             "/team/people/{id}/activity",
             get(handlers::person_activity),
         )
+        .route(
+            "/team/identities/orphans",
+            get(handlers::search_orphan_identities),
+        )
 }

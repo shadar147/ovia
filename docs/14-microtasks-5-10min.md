@@ -318,15 +318,15 @@ Rule: each task should be completable in one focused sprint (<=10 min), with a c
 - [ ] MT-6004-08 Update delivery backlog status to `done`.
 
 ## OVIA-6005 Multi-Identity Mapping UI — Frontend (decomposed)
-- [ ] MT-6005-01 Create `IdentityLinkPanel` component — shows linked identities with source icon, username, email, status badge, linked date.
-- [ ] MT-6005-02 Add source icon mapping: GitLab (git-merge), Jira (ticket), Confluence (file-text), Git (git-commit).
-- [ ] MT-6005-03 Add API client: `fetchPersonIdentities(personId)`, `linkIdentity(personId, identityId)`, `unlinkIdentity(personId, identityId)`.
-- [ ] MT-6005-04 Create "Link Identity" search dialog — search orphan identities by username/email/source with typeahead.
-- [ ] MT-6005-05 Wire link flow: search → select → `POST /team/people/:id/identities` → optimistic UI update → refetch.
-- [ ] MT-6005-06 Wire unlink flow: row "Unlink" button → confirmation dialog → `DELETE` → optimistic update → refetch.
-- [ ] MT-6005-07 Add i18n messages (en + ru): panel title, link/unlink labels, search placeholder, confirmation text, empty state.
-- [ ] MT-6005-08 Add tests: link identity flow, unlink with confirmation, orphan search rendering.
-- [ ] MT-6005-09 Update delivery backlog status to `done`.
+- [x] MT-6005-01 Create `IdentityLinkPanel` component — shows linked identities with source icon, username, email, status badge, linked date.
+- [x] MT-6005-02 Add source icon mapping: GitLab (git-merge), Jira (ticket), Confluence (file-text), Git (git-commit).
+- [x] MT-6005-03 Add API client: `searchOrphanIdentities(filter)`, `linkIdentity(personId, identityId)`, `unlinkIdentity(personId, identityId)`.
+- [x] MT-6005-04 Create "Link Identity" search dialog — search orphan identities by username/email/source with typeahead.
+- [x] MT-6005-05 Wire link flow: search → select → `POST /team/people/:id/identities` → UI update → refetch.
+- [x] MT-6005-06 Wire unlink flow: row "Unlink" button → confirmation dialog → `DELETE` → update → refetch.
+- [x] MT-6005-07 Add i18n messages (en + ru): panel title, link/unlink labels, search placeholder, confirmation text, empty state.
+- [x] MT-6005-08 Add tests: link identity flow (11 tests), unlink with confirmation (10 tests), page integration (14 tests).
+- [x] MT-6005-09 Update delivery backlog status to `done`.
 
 ## OVIA-7001 Person 360 Backend API (decomposed)
 - [x] MT-7001-05 Implement `GET /team/people/:id/activity` handler with query params: `period`, `source`, `type`, `limit`, `offset`.

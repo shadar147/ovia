@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import {
   Select,
@@ -25,17 +24,13 @@ import { ErrorState } from "@/components/states/error";
 import { EmptyState } from "@/components/states/empty";
 import {
   usePerson,
-  usePersonIdentities,
   usePersonActivity,
-  useUnlinkIdentity,
 } from "@/features/people/hooks/use-people";
-import { LinkIdentityDialog } from "@/features/people/components/link-identity-dialog";
+import { IdentityLinkPanel } from "@/features/people/components/identity-link-panel";
 import { useTranslation, formatShortDate, formatDateTime } from "@/i18n";
 import type { ActivityFilter } from "@/lib/api/types";
 import {
   ArrowLeft,
-  Plus,
-  X,
   GitMerge,
   Link2,
   Mail,
@@ -50,7 +45,6 @@ export default function Person360Page() {
   const personId = params.id;
   const { t, locale } = useTranslation();
 
-  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [periodFilter, setPeriodFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -74,23 +68,9 @@ export default function Person360Page() {
   } = usePerson(personId);
 
   const {
-    data: identities,
-    isLoading: identitiesLoading,
-  } = usePersonIdentities(personId);
-
-  const {
     data: activity,
     isLoading: activityLoading,
   } = usePersonActivity(personId, activityFilter);
-
-  const unlinkMutation = useUnlinkIdentity(personId);
-
-  const handleUnlink = useCallback(
-    (identityId: string) => {
-      unlinkMutation.mutate(identityId);
-    },
-    [unlinkMutation],
-  );
 
   // Loading state
   if (personLoading) {
@@ -179,68 +159,11 @@ export default function Person360Page() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left: Identities + Stats */}
         <div className="space-y-6 lg:col-span-1">
-          {/* Identities Card */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <div>
-                <CardTitle className="text-base">{t("person360.identities")}</CardTitle>
-                <CardDescription>
-                  {person.identity_count} {t("people.colIdentities").toLowerCase()}
-                </CardDescription>
-              </div>
-              <Button
-                size="xs"
-                variant="outline"
-                onClick={() => setLinkDialogOpen(true)}
-              >
-                <Plus className="mr-1 h-3 w-3" />
-                {t("person360.linkIdentity")}
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {identitiesLoading ? (
-                <LoadingState rows={3} />
-              ) : !identities?.data.length ? (
-                <EmptyState
-                  title={t("person360.noIdentities")}
-                  description={t("person360.noIdentitiesDesc")}
-                />
-              ) : (
-                <div className="space-y-3">
-                  {identities.data.map((identity) => (
-                    <div
-                      key={identity.link_id}
-                      className="flex items-center justify-between rounded-md border px-3 py-2"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <SourceBadge source={identity.source} />
-                          <span className="truncate text-sm font-medium">
-                            {identity.display_name ?? identity.username ?? identity.email ?? identity.identity_id}
-                          </span>
-                        </div>
-                        {identity.username && (
-                          <p className="mt-0.5 text-xs text-muted-foreground truncate">
-                            @{identity.username}
-                          </p>
-                        )}
-                      </div>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 shrink-0"
-                        onClick={() => handleUnlink(identity.identity_id)}
-                        disabled={unlinkMutation.isPending}
-                        title={t("person360.unlink")}
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Identity Link Panel */}
+          <IdentityLinkPanel
+            personId={personId}
+            identityCount={person.identity_count}
+          />
 
           {/* Stats Card */}
           <Card>
@@ -327,13 +250,6 @@ export default function Person360Page() {
           </Card>
         </div>
       </div>
-
-      {/* Link Identity Dialog */}
-      <LinkIdentityDialog
-        personId={personId}
-        open={linkDialogOpen}
-        onOpenChange={setLinkDialogOpen}
-      />
     </div>
   );
 }

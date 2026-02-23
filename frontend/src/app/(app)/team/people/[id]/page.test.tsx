@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import Person360Page from "./page";
 
 // ── Mocks ────────────────────────────────────────────────────
@@ -95,6 +94,10 @@ vi.mock("@/features/people/hooks/use-people", () => ({
     mutate: vi.fn(),
     isPending: false,
   }),
+  useOrphanIdentities: () => ({
+    data: undefined,
+    isLoading: false,
+  }),
 }));
 
 vi.mock("next/link", () => ({
@@ -147,15 +150,14 @@ describe("Person360Page", () => {
     expect(screen.getByText("Active")).toBeInTheDocument();
   });
 
-  it("renders linked identities with source badges", () => {
+  it("renders linked identities with source group headers", () => {
     render(<Person360Page />);
 
     expect(screen.getByText("@alice.chen")).toBeInTheDocument();
     expect(screen.getByText("Alice C")).toBeInTheDocument();
-    // Source badges
-    const gitlabBadges = screen.getAllByText("gitlab");
-    expect(gitlabBadges.length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("jira").length).toBeGreaterThanOrEqual(1);
+    // Source group headers
+    expect(screen.getByText("GitLab")).toBeInTheDocument();
+    expect(screen.getByText("Jira")).toBeInTheDocument();
   });
 
   it("renders activity timeline items", () => {
@@ -235,7 +237,8 @@ describe("Person360Page", () => {
     expect(backLink.closest("a")).toHaveAttribute("href", "/team/people");
   });
 
-  it("calls unlink when X button is clicked", async () => {
+  it("shows unlink confirmation dialog when X clicked", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event");
     const user = userEvent.setup();
     render(<Person360Page />);
 
@@ -243,8 +246,10 @@ describe("Person360Page", () => {
     const unlinkButtons = screen.getAllByTitle("Unlink");
     expect(unlinkButtons.length).toBe(2);
 
-    await user.click(unlinkButtons[0]);
-    expect(mockUnlinkMutate).toHaveBeenCalledWith("i1");
+    await user.click(unlinkButtons[0] as HTMLElement);
+
+    // Should show confirmation dialog instead of directly calling mutate
+    expect(screen.getByText("Unlink this identity?")).toBeInTheDocument();
   });
 
   it("renders stats with identity count and total activity", () => {
@@ -264,5 +269,19 @@ describe("Person360Page", () => {
     render(<Person360Page />);
 
     expect(screen.getByText("Inactive")).toBeInTheDocument();
+  });
+
+  it("renders identity link panel with panel header", () => {
+    render(<Person360Page />);
+
+    expect(screen.getByText("Linked Identities")).toBeInTheDocument();
+    expect(screen.getByText("Link Identity")).toBeInTheDocument();
+  });
+
+  it("shows identity confidence for auto-matched links", () => {
+    render(<Person360Page />);
+
+    // Auto identity at 0.85 confidence shows 85%
+    expect(screen.getByText("85%")).toBeInTheDocument();
   });
 });

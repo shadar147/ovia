@@ -1,4 +1,4 @@
-import type { PersonFilter, ActivityFilter } from "@/lib/api/types";
+import type { PersonFilter, ActivityFilter, OrphanIdentityFilter } from "@/lib/api/types";
 
 export const peopleKeys = {
   all: ["people"] as const,
@@ -7,4 +7,6 @@ export const peopleKeys = {
   identities: (id: string) => [...peopleKeys.all, "identities", id] as const,
   activity: (id: string, filter: ActivityFilter = {}) =>
     [...peopleKeys.all, "activity", id, filter] as const,
+  orphanIdentities: (filter: OrphanIdentityFilter = {}) =>
+    [...peopleKeys.all, "orphan-identities", filter] as const,
 };

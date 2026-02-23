@@ -64,6 +64,26 @@ pub struct ActivityItem {
 }
 
 #[derive(Debug, Serialize)]
+pub struct OrphanIdentityResponse {
+    pub id: Uuid,
+    pub source: String,
+    pub external_id: Option<String>,
+    pub username: Option<String>,
+    pub email: Option<String>,
+    pub display_name: Option<String>,
+    pub is_service_account: bool,
+    pub first_seen_at: Option<DateTime<Utc>>,
+    pub last_seen_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct OrphanIdentitiesResponse {
+    pub data: Vec<OrphanIdentityResponse>,
+    pub count: usize,
+    pub total: i64,
+}
+
+#[derive(Debug, Serialize)]
 pub struct ActivityListResponse {
     pub data: Vec<ActivityItem>,
     pub count: usize,

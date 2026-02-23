@@ -11,11 +11,13 @@ use uuid::Uuid;
 use crate::error::ApiError;
 use crate::extractors::OrgId;
 use crate::people::requests::{
-    ActivityFilter, CreatePersonRequest, LinkIdentityRequest, UpdatePersonRequest,
+    ActivityFilter, CreatePersonRequest, LinkIdentityRequest, OrphanIdentityFilter,
+    UpdatePersonRequest,
 };
 use crate::people::responses::{
     ActivityItem, ActivityListResponse, LinkResponse, LinkedIdentitiesResponse,
-    LinkedIdentityResponse, ListPeopleResponse, PersonResponse,
+    LinkedIdentityResponse, ListPeopleResponse, OrphanIdentitiesResponse,
+    OrphanIdentityResponse, PersonResponse,
 };
 use crate::AppState;
 
@@ -616,4 +618,101 @@ pub async fn person_activity(
         count,
         total,
     }))
+}
+
+pub async fn search_orphan_identities(
+    State(state): State<AppState>,
+    OrgId(org): OrgId,
+    Query(filter): Query<OrphanIdentityFilter>,
+) -> Result<Json<OrphanIdentitiesResponse>, ApiError> {
+    let pool = state.identity_repo.pool();
+    let limit = filter.limit.unwrap_or(20).min(100);
+    let offset = filter.offset.unwrap_or(0);
+    let source = filter.source.as_deref();
+    let search = filter.search.as_deref().unwrap_or("");
+
+    // Build dynamic query for orphan identities (not actively linked to any person)
+    let mut conditions = vec![
+        "i.org_id = $1".to_string(),
+        "NOT EXISTS (SELECT 1 FROM person_identity_links pil WHERE pil.identity_id = i.id AND pil.valid_to IS NULL)".to_string(),
+    ];
+    let mut bind_idx = 2u32;
+
+    if let Some(src) = source {
+        if src != "all" {
+            conditions.push(format!("i.source = ${bind_idx}"));
+            bind_idx += 1;
+        }
+    }
+
+    if !search.is_empty() {
+        conditions.push(format!(
+            "(i.username ILIKE ${bind_idx} OR i.email ILIKE ${bind_idx} OR i.display_name ILIKE ${bind_idx})"
+        ));
+        bind_idx += 1;
+    }
+
+    let where_clause = conditions.join(" AND ");
+
+    // Count query
+    let count_sql = format!("SELECT COUNT(*) FROM identities i WHERE {where_clause}");
+    let mut count_query = sqlx::query_scalar::<_, i64>(&count_sql).bind(org);
+
+    if let Some(src) = source {
+        if src != "all" {
+            count_query = count_query.bind(src.to_string());
+        }
+    }
+    if !search.is_empty() {
+        count_query = count_query.bind(format!("%{search}%"));
+    }
+
+    let total = count_query
+        .fetch_one(pool)
+        .await
+        .map_err(|e| OviaError::Database(e.to_string()))?;
+
+    // Data query
+    let data_sql = format!(
+        "SELECT i.id, i.source, i.external_id, i.username, i.email, i.display_name, \
+                i.is_service_account, i.first_seen_at, i.last_seen_at \
+         FROM identities i WHERE {where_clause} \
+         ORDER BY i.last_seen_at DESC NULLS LAST, i.display_name ASC \
+         LIMIT ${bind_idx} OFFSET ${}",
+        bind_idx + 1
+    );
+    let mut data_query = sqlx::query(&data_sql).bind(org);
+
+    if let Some(src) = source {
+        if src != "all" {
+            data_query = data_query.bind(src.to_string());
+        }
+    }
+    if !search.is_empty() {
+        data_query = data_query.bind(format!("%{search}%"));
+    }
+    data_query = data_query.bind(limit).bind(offset);
+
+    let rows = data_query
+        .fetch_all(pool)
+        .await
+        .map_err(|e| OviaError::Database(e.to_string()))?;
+
+    let data: Vec<OrphanIdentityResponse> = rows
+        .into_iter()
+        .map(|r| OrphanIdentityResponse {
+            id: r.get("id"),
+            source: r.get("source"),
+            external_id: r.get("external_id"),
+            username: r.get("username"),
+            email: r.get("email"),
+            display_name: r.get("display_name"),
+            is_service_account: r.get("is_service_account"),
+            first_seen_at: r.get("first_seen_at"),
+            last_seen_at: r.get("last_seen_at"),
+        })
+        .collect();
+
+    let count = data.len();
+    Ok(Json(OrphanIdentitiesResponse { data, count, total }))
 }
