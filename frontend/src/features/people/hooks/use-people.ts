@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { peopleApi } from "@/features/people/api/client";
 import { peopleKeys } from "@/features/people/api/keys";
-import type { PersonFilter, CreatePersonRequest } from "@/lib/api/types";
+import type { PersonFilter, CreatePersonRequest, ActivityFilter } from "@/lib/api/types";
 import { toast } from "sonner";
 import { useTranslation } from "@/i18n";
 
@@ -23,5 +23,61 @@ export function useCreatePerson() {
       toast.success(t("people.created"));
     },
     onError: () => toast.error(t("people.createFailed")),
+  });
+}
+
+export function usePerson(id: string) {
+  return useQuery({
+    queryKey: peopleKeys.detail(id),
+    queryFn: () => peopleApi.get(id),
+    enabled: !!id,
+  });
+}
+
+export function usePersonIdentities(personId: string) {
+  return useQuery({
+    queryKey: peopleKeys.identities(personId),
+    queryFn: () => peopleApi.listIdentities(personId),
+    enabled: !!personId,
+  });
+}
+
+export function useLinkIdentity(personId: string) {
+  const qc = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation({
+    mutationFn: (identityId: string) =>
+      peopleApi.linkIdentity(personId, identityId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: peopleKeys.identities(personId) });
+      qc.invalidateQueries({ queryKey: peopleKeys.detail(personId) });
+      toast.success(t("person360.identityLinked"));
+    },
+    onError: () => toast.error(t("person360.linkFailed")),
+  });
+}
+
+export function useUnlinkIdentity(personId: string) {
+  const qc = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation({
+    mutationFn: (identityId: string) =>
+      peopleApi.unlinkIdentity(personId, identityId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: peopleKeys.identities(personId) });
+      qc.invalidateQueries({ queryKey: peopleKeys.detail(personId) });
+      toast.success(t("person360.identityUnlinked"));
+    },
+    onError: () => toast.error(t("person360.unlinkFailed")),
+  });
+}
+
+export function usePersonActivity(personId: string, filter: ActivityFilter = {}) {
+  return useQuery({
+    queryKey: peopleKeys.activity(personId, filter),
+    queryFn: () => peopleApi.listActivity(personId, filter),
+    enabled: !!personId,
   });
 }

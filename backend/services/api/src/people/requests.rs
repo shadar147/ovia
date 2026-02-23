@@ -24,3 +24,13 @@ pub struct UpdatePersonRequest {
 pub struct LinkIdentityRequest {
     pub identity_id: Uuid,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct ActivityFilter {
+    pub period: Option<String>,       // 7d, 30d, 90d
+    pub source: Option<String>,       // gitlab, jira, identity, all
+    #[serde(rename = "type")]
+    pub activity_type: Option<String>, // merge_request, issue, identity_event, all
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+}

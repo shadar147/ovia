@@ -50,3 +50,22 @@ pub struct LinkedIdentitiesResponse {
     pub data: Vec<LinkedIdentityResponse>,
     pub count: usize,
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ActivityItem {
+    pub id: String,
+    pub source: String,
+    #[serde(rename = "type")]
+    pub activity_type: String,
+    pub title: String,
+    pub url: Option<String>,
+    pub timestamp: DateTime<Utc>,
+    pub metadata: serde_json::Value,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ActivityListResponse {
+    pub data: Vec<ActivityItem>,
+    pub count: usize,
+    pub total: i64,
+}

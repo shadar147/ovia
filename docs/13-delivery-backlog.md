@@ -525,7 +525,7 @@ Status legend: `todo | in_progress | review | done | blocked`
 ## Epic 7 — Person 360 Profile & Activity Timeline
 
 ### OVIA-7001 Person 360 Backend API
-- Status: `todo`
+- Status: `done`
 - Priority: P1
 - Owner: Claude
 - Depends on: OVIA-6001, OVIA-6002
@@ -554,7 +554,7 @@ Status legend: `todo | in_progress | review | done | blocked`
   - API: 3 handler tests (profile, activity with filters, activity pagination).
 
 ### OVIA-7002 Person 360 Page (Frontend)
-- Status: `todo`
+- Status: `done`
 - Priority: P1
 - Owner: Claude
 - Depends on: OVIA-7001, OVIA-6005

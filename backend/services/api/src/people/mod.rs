@@ -22,4 +22,8 @@ pub fn router() -> Router<AppState> {
             "/team/people/{id}/identities/{identity_id}",
             delete(handlers::unlink_identity),
         )
+        .route(
+            "/team/people/{id}/activity",
+            get(handlers::person_activity),
+        )
 }

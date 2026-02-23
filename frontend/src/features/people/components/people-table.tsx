@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpDown } from "lucide-react";
@@ -87,14 +88,14 @@ export function PeopleTable({
           <SortableHeader column={column} labelKey="people.colName" />
         ),
         cell: ({ row }) => (
-          <div>
+          <Link href={`/team/people/${row.original.id}`} className="block hover:underline">
             <p className="font-medium">{row.original.display_name}</p>
             {row.original.primary_email && (
               <p className="text-xs text-muted-foreground">
                 {row.original.primary_email}
               </p>
             )}
-          </div>
+          </Link>
         ),
       },
       {

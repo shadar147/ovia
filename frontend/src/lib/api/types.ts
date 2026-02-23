@@ -160,6 +160,51 @@ export interface CreatePersonRequest {
   role?: string;
 }
 
+// ── Person Identities ──
+
+export interface LinkedIdentityResponse {
+  link_id: string;
+  identity_id: string;
+  source: string;
+  username: string | null;
+  email: string | null;
+  display_name: string | null;
+  status: string;
+  confidence: number;
+  linked_at: string;
+}
+
+export interface LinkedIdentitiesResponse {
+  data: LinkedIdentityResponse[];
+  count: number;
+}
+
+// ── Person Activity ──
+
+export interface ActivityItem {
+  id: string;
+  source: string;
+  type: string;
+  title: string;
+  url: string | null;
+  timestamp: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface ActivityListResponse {
+  data: ActivityItem[];
+  count: number;
+  total: number;
+}
+
+export interface ActivityFilter {
+  period?: string;
+  source?: string;
+  type?: string;
+  limit?: number;
+  offset?: number;
+}
+
 export interface AskSession {
   id: string;
   org_id: string;

@@ -10,10 +10,12 @@ use uuid::Uuid;
 
 use crate::error::ApiError;
 use crate::extractors::OrgId;
-use crate::people::requests::{CreatePersonRequest, LinkIdentityRequest, UpdatePersonRequest};
+use crate::people::requests::{
+    ActivityFilter, CreatePersonRequest, LinkIdentityRequest, UpdatePersonRequest,
+};
 use crate::people::responses::{
-    LinkResponse, LinkedIdentitiesResponse, LinkedIdentityResponse, ListPeopleResponse,
-    PersonResponse,
+    ActivityItem, ActivityListResponse, LinkResponse, LinkedIdentitiesResponse,
+    LinkedIdentityResponse, ListPeopleResponse, PersonResponse,
 };
 use crate::AppState;
 
@@ -432,4 +434,186 @@ pub async fn list_person_identities(
 
     let count = data.len();
     Ok(Json(LinkedIdentitiesResponse { data, count }))
+}
+
+pub async fn person_activity(
+    State(state): State<AppState>,
+    OrgId(org): OrgId,
+    Path(person_id): Path<Uuid>,
+    Query(filter): Query<ActivityFilter>,
+) -> Result<Json<ActivityListResponse>, ApiError> {
+    // Verify person exists
+    let _person = PersonRepository::get_by_id(&state.identity_repo, org, person_id)
+        .await?
+        .ok_or_else(|| {
+            ApiError(OviaError::NotFound(format!(
+                "person not found: {person_id}"
+            )))
+        })?;
+
+    let pool = state.identity_repo.pool();
+    let limit = filter.limit.unwrap_or(50).min(200);
+    let offset = filter.offset.unwrap_or(0);
+
+    // Compute the cutoff date based on period
+    let cutoff = match filter.period.as_deref() {
+        Some("7d") => Some(chrono::Utc::now() - chrono::Duration::days(7)),
+        Some("30d") => Some(chrono::Utc::now() - chrono::Duration::days(30)),
+        Some("90d") => Some(chrono::Utc::now() - chrono::Duration::days(90)),
+        _ => None,
+    };
+
+    let source = filter.source.as_deref().unwrap_or("all");
+    let activity_type = filter.activity_type.as_deref().unwrap_or("all");
+
+    // Get identity_ids linked to this person
+    let identity_ids: Vec<Uuid> = sqlx::query_scalar(
+        "select identity_id from person_identity_links \
+         where org_id = $1 and person_id = $2 and valid_to is null",
+    )
+    .bind(org)
+    .bind(person_id)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| OviaError::Database(e.to_string()))?;
+
+    let mut items: Vec<ActivityItem> = Vec::new();
+
+    // 1. GitLab MRs — match via identity username
+    if (source == "all" || source == "gitlab")
+        && (activity_type == "all" || activity_type == "merge_request")
+        && !identity_ids.is_empty()
+    {
+        let usernames: Vec<Option<String>> = sqlx::query_scalar(
+            "select username from identities where id = any($1) and source = 'gitlab'",
+        )
+        .bind(&identity_ids)
+        .fetch_all(pool)
+        .await
+        .unwrap_or_default();
+
+        let usernames: Vec<String> = usernames.into_iter().flatten().collect();
+
+        if !usernames.is_empty() {
+            let mrs = if let Some(ref cutoff_dt) = cutoff {
+                sqlx::query(
+                    "select id, title, web_url, state, created_at_gl, merged_at, author_username \
+                     from gitlab_merge_requests \
+                     where org_id = $1 and author_username = any($2) and created_at_gl >= $3 \
+                     order by created_at_gl desc",
+                )
+                .bind(org)
+                .bind(&usernames)
+                .bind(cutoff_dt)
+                .fetch_all(pool)
+                .await
+            } else {
+                sqlx::query(
+                    "select id, title, web_url, state, created_at_gl, merged_at, author_username \
+                     from gitlab_merge_requests \
+                     where org_id = $1 and author_username = any($2) \
+                     order by created_at_gl desc",
+                )
+                .bind(org)
+                .bind(&usernames)
+                .fetch_all(pool)
+                .await
+            }
+            .unwrap_or_default();
+
+            for r in mrs {
+                let id: Uuid = r.get("id");
+                let title: String = r.get("title");
+                let web_url: Option<String> = r.get("web_url");
+                let state: String = r.get("state");
+                let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at_gl");
+                let merged_at: Option<chrono::DateTime<chrono::Utc>> = r.get("merged_at");
+                let author: Option<String> = r.get("author_username");
+
+                items.push(ActivityItem {
+                    id: id.to_string(),
+                    source: "gitlab".to_string(),
+                    activity_type: "merge_request".to_string(),
+                    title,
+                    url: web_url,
+                    timestamp: merged_at.unwrap_or(created_at),
+                    metadata: serde_json::json!({
+                        "state": state,
+                        "author": author,
+                    }),
+                });
+            }
+        }
+    }
+
+    // 2. Identity events (link/unlink/match)
+    if (source == "all" || source == "identity")
+        && (activity_type == "all" || activity_type == "identity_event")
+    {
+        let events = if let Some(ref cutoff_dt) = cutoff {
+            sqlx::query(
+                "select ie.id, ie.action, ie.payload, ie.created_at \
+                 from identity_events ie \
+                 join person_identity_links pil on ie.link_id = pil.id \
+                 where pil.org_id = $1 and pil.person_id = $2 and ie.created_at >= $3 \
+                 order by ie.created_at desc",
+            )
+            .bind(org)
+            .bind(person_id)
+            .bind(cutoff_dt)
+            .fetch_all(pool)
+            .await
+        } else {
+            sqlx::query(
+                "select ie.id, ie.action, ie.payload, ie.created_at \
+                 from identity_events ie \
+                 join person_identity_links pil on ie.link_id = pil.id \
+                 where pil.org_id = $1 and pil.person_id = $2 \
+                 order by ie.created_at desc",
+            )
+            .bind(org)
+            .bind(person_id)
+            .fetch_all(pool)
+            .await
+        }
+        .unwrap_or_default();
+
+        for r in events {
+            let id: Uuid = r.get("id");
+            let action: String = r.get("action");
+            let payload: Option<serde_json::Value> = r.get("payload");
+            let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at");
+
+            items.push(ActivityItem {
+                id: id.to_string(),
+                source: "identity".to_string(),
+                activity_type: "identity_event".to_string(),
+                title: format!("Identity {}", action.replace('_', " ")),
+                url: None,
+                timestamp: created_at,
+                metadata: payload.unwrap_or(serde_json::json!({})),
+            });
+        }
+    }
+
+    // Sort all items by timestamp desc
+    items.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+
+    let total = items.len() as i64;
+
+    // Apply pagination
+    let start = offset as usize;
+    let end = (start + limit as usize).min(items.len());
+    let page = if start < items.len() {
+        items[start..end].to_vec()
+    } else {
+        Vec::new()
+    };
+
+    let count = page.len();
+    Ok(Json(ActivityListResponse {
+        data: page,
+        count,
+        total,
+    }))
 }
