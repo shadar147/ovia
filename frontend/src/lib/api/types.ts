@@ -124,6 +124,42 @@ export interface KpiHistoryFilter {
   offset?: number;
 }
 
+// ── People ──
+
+export interface PersonResponse {
+  id: string;
+  display_name: string;
+  primary_email: string | null;
+  avatar_url: string | null;
+  team: string | null;
+  role: string | null;
+  status: string;
+  identity_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListPeopleResponse {
+  data: PersonResponse[];
+  count: number;
+  total: number;
+}
+
+export interface PersonFilter {
+  search?: string;
+  team?: string;
+  status?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface CreatePersonRequest {
+  display_name: string;
+  primary_email?: string;
+  team?: string;
+  role?: string;
+}
+
 export interface AskSession {
   id: string;
   org_id: string;

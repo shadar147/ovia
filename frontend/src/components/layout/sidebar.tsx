@@ -8,6 +8,7 @@ import type { MessageKey } from "@/i18n";
 import {
   LayoutDashboard,
   Users,
+  Contact,
   MessageSquare,
   FileText,
   Settings,
@@ -18,6 +19,7 @@ import {
 const navItems: { href: string; labelKey: MessageKey; icon: LucideIcon }[] = [
   { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
   { href: "/team/identity", labelKey: "nav.identityMapping", icon: Users },
+  { href: "/team/people", labelKey: "nav.people", icon: Contact },
   { href: "/ask", labelKey: "nav.askOvia", icon: MessageSquare },
   { href: "/reports", labelKey: "nav.reports", icon: FileText },
   { href: "/settings", labelKey: "nav.settings", icon: Settings },
